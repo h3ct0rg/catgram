@@ -23,6 +23,7 @@ dotnet run --project backend/api/KindredPaws.Api --launch-profile http
 - API: `http://localhost:5080`
 - Health check: `http://localhost:5080/health`
 - OpenAPI (Development): `http://localhost:5080/openapi/v1.json`
+- Swagger UI (Development, se abre automáticamente al correr `dotnet run`): `http://localhost:5080/swagger`
 
 ### Notification worker
 

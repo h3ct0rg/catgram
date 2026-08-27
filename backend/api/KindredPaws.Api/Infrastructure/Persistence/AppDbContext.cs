@@ -2,6 +2,9 @@ using KindredPaws.Api.Domain.Identity;
 using KindredPaws.Api.Domain.Animals;
 using KindredPaws.Api.Domain.Shelters;
 using KindredPaws.Api.Domain.Social;
+using KindredPaws.Api.Domain.Follows;
+using KindredPaws.Api.Domain.Notifications;
+using KindredPaws.Api.Domain.Moderation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +22,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<PostMedia> PostMedia => Set<PostMedia>();
     public DbSet<Story> Stories => Set<Story>();
     public DbSet<StoryView> StoryViews => Set<StoryView>();
+    public DbSet<Like> Likes => Set<Like>();
+    public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<Follow> Follows => Set<Follow>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<Report> Reports => Set<Report>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -38,5 +47,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<Post>().HasMany(x => x.Media).WithOne(x => x.Post).HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<Story>().HasIndex(x => x.ExpiresAt);
         builder.Entity<Story>().HasMany(x => x.Views).WithOne(x => x.Story).HasForeignKey(x => x.StoryId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Like>().HasIndex(x => new { x.PostId, x.UserId }).IsUnique();
+        builder.Entity<Like>().HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Comment>().Property(x => x.Body).HasMaxLength(2000).IsRequired();
+        builder.Entity<Comment>().HasIndex(x => new { x.PostId, x.CreatedAt });
+        builder.Entity<Comment>().HasIndex(x => x.ParentCommentId);
+        builder.Entity<Comment>().HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<Comment>().HasOne(x => x.ParentComment).WithMany().HasForeignKey(x => x.ParentCommentId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Follow>().HasIndex(x => new { x.UserId, x.AnimalId }).IsUnique();
+
+        builder.Entity<Notification>().Property(x => x.Title).HasMaxLength(200).IsRequired();
+        builder.Entity<Notification>().Property(x => x.Body).HasMaxLength(500).IsRequired();
+        builder.Entity<Notification>().HasIndex(x => new { x.RecipientUserId, x.IsRead, x.CreatedAt });
+        builder.Entity<NotificationPreference>().HasIndex(x => new { x.UserId, x.Type }).IsUnique();
+
+        builder.Entity<Report>().Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+        builder.Entity<Report>().HasIndex(x => new { x.TargetType, x.TargetId });
+        builder.Entity<Report>().HasIndex(x => x.Status);
     }
 }

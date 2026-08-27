@@ -27,7 +27,11 @@ public static class IdentitySeeder
                 MustChangePassword = true,
                 EmailConfirmed = true
             };
-            var result = await userManager.CreateAsync(admin, password);
+            // Seed via a pre-hashed password (CreateAsync(user) skips IPasswordValidator) since the
+            // requested dev/demo credential "superadmin/superadmin" does not satisfy the Identity
+            // password policy configured above; MustChangePassword forces a real one on first login.
+            admin.PasswordHash = userManager.PasswordHasher.HashPassword(admin, password);
+            var result = await userManager.CreateAsync(admin);
             if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(x => x.Description)));
         }
 

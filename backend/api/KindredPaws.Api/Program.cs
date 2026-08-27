@@ -4,11 +4,15 @@ using KindredPaws.Api.Application.Shared;
 using KindredPaws.Api.Application.Users;
 using KindredPaws.Api.Application.Social;
 using KindredPaws.Api.Application.Animals;
+using KindredPaws.Api.Application.Engagement;
+using KindredPaws.Api.Application.Follows;
+using KindredPaws.Api.Application.Notifications;
+using KindredPaws.Api.Application.Moderation;
 using KindredPaws.Api.Domain.Identity;
 using KindredPaws.Api.Infrastructure.Identity;
+using KindredPaws.Api.Infrastructure.Media;
 using KindredPaws.Api.Infrastructure.Messaging;
 using KindredPaws.Api.Infrastructure.Persistence;
-using KindredPaws.Api.Infrastructure.Services;
 using KindredPaws.Api.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -21,7 +25,8 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
@@ -72,10 +77,21 @@ builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAnimalService, AnimalService>();
 builder.Services.AddScoped<ISocialService, SocialService>();
+builder.Services.AddScoped<ILikeService, LikeService>();
+builder.Services.AddScoped<IFollowService, FollowService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ShelterRepository>();
 builder.Services.AddScoped<AnimalRepository>();
 builder.Services.AddScoped<SocialRepository>();
+builder.Services.AddScoped<LikeRepository>();
+builder.Services.AddScoped<FollowRepository>();
+builder.Services.AddScoped<NotificationRepository>();
+builder.Services.AddScoped<CommentRepository>();
+builder.Services.AddScoped<ReportRepository>();
 builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
+builder.Services.AddSingleton<IThumbnailGenerator, ImageSharpThumbnailGenerator>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
@@ -92,7 +108,20 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
+// UseExceptionHandler resets the response before writing the ProblemDetails body, which wipes out
+// any CORS headers UseCors had already set further down the pipeline. Applying the CORS policy again
+// inside the error branch ensures a 500 still carries the right Access-Control-Allow-Origin header
+// instead of surfacing to the browser as an opaque CORS failure.
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.UseCors("Frontend");
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        await context.RequestServices.GetRequiredService<IProblemDetailsService>()
+            .WriteAsync(new ProblemDetailsContext { HttpContext = context });
+    });
+});
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
 app.UseAuthentication();
@@ -101,6 +130,7 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Kindred Paws API v1"));
 }
 
 app.MapHealthChecks("/health");
@@ -116,7 +146,7 @@ if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
     await IdentitySeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
 }
 

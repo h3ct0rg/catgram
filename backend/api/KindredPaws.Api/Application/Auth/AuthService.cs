@@ -77,7 +77,7 @@ public sealed class AuthService(
         };
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
         var credentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Value.Key)), SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(claims: claims, expires: expires.UtcDateTime, signingCredentials: credentials);
+        var token = new JwtSecurityToken(issuer: jwtOptions.Value.Issuer, claims: claims, expires: expires.UtcDateTime, signingCredentials: credentials);
         return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, user.UserName!, [.. roles], user.MustChangePassword);
     }
 

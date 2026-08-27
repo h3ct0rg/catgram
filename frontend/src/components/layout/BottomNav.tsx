@@ -9,17 +9,16 @@ export function BottomNav({ onHome, onSearch, onCreate, onProfile }: Props) {
   return (
     <nav className="bottom-nav">
       <button className="active" onClick={onHome}>
-        ⌂
-        <small>Inicio</small>
+        ⌂<small>Inicio</small>
       </button>
       <button onClick={onSearch}>
-        ⌕
-        <small>Buscar</small>
+        ⌕<small>Buscar</small>
       </button>
-      <button className="create" onClick={onCreate}>＋</button>
+      <button className="create" onClick={onCreate}>
+        ＋
+      </button>
       <button onClick={onProfile}>
-        ♙
-        <small>Perfil</small>
+        ♙<small>Perfil</small>
       </button>
     </nav>
   )

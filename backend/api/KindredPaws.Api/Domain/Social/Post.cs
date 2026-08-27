@@ -7,6 +7,7 @@ public sealed class Post
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ShelterId { get; set; }
     public Guid AnimalId { get; set; }
+    public Guid? CreatedByUserId { get; set; }
     public string Caption { get; set; } = string.Empty;
     public string? Location { get; set; }
     public string? Hashtags { get; set; }
@@ -23,6 +24,7 @@ public sealed class PostMedia
     public Guid PostId { get; set; }
     public Post? Post { get; set; }
     public string ObjectKey { get; set; } = string.Empty;
+    public string? ThumbnailObjectKey { get; set; }
     public string ContentType { get; set; } = string.Empty;
     public bool IsPrimary { get; set; }
 }

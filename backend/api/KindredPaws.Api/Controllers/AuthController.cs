@@ -36,7 +36,7 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         if (!result.Succeeded || result.Principal is null) return Unauthorized();
         var subject = result.Principal.FindFirst("sub")?.Value;
         var email = result.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-        var token = result.Properties?.Items.GetValueOrDefault("invitation_token");
+        string? token = result.Properties?.Items.TryGetValue("invitation_token", out var invitationToken) == true ? invitationToken : null;
         if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token)) return Forbid();
         return Ok(await authService.AcceptInvitationAsync(new AcceptInvitationRequest(token, subject, email), cancellationToken));
     }

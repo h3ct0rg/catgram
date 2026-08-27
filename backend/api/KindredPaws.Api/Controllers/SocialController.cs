@@ -12,18 +12,31 @@ public sealed class SocialController(ISocialService socialService) : ControllerB
 {
     [HttpGet("feed")]
     [AllowAnonymous]
-    public Task<IReadOnlyCollection<PostResponse>> Feed([FromQuery] DateTimeOffset? before, [FromQuery] int pageSize = 20, CancellationToken ct = default) => socialService.GetFeedAsync(before, pageSize, ct);
+    public Task<IReadOnlyCollection<PostResponse>> Feed([FromQuery] DateTimeOffset? before, [FromQuery] int skip = 0, [FromQuery] int pageSize = 20, [FromQuery] string sort = "recent", CancellationToken ct = default)
+    {
+        Guid? userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var parsed) ? parsed : null;
+        return socialService.GetFeedAsync(before, skip, pageSize, sort, userId, ct);
+    }
 
     [HttpGet("stories")]
     [AllowAnonymous]
     public Task<IReadOnlyCollection<StoryResponse>> Stories(CancellationToken ct) => socialService.GetStoriesAsync(ct);
+
+    [HttpGet("posts/{id:guid}")]
+    [AllowAnonymous]
+    public Task<PostResponse> GetPost(Guid id, CancellationToken ct)
+    {
+        Guid? userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var parsed) ? parsed : null;
+        return socialService.GetPostAsync(id, userId, ct);
+    }
 
     [HttpPost("posts")]
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
     public async Task<PostResponse> CreatePost([FromForm] CreatePostRequest request, [FromForm] List<IFormFile>? files, CancellationToken ct)
     {
         var uploads = (files ?? []).Select(file => new MediaUpload(file.FileName, file.ContentType, file.Length, file.OpenReadStream(), false)).ToArray();
-        try { return await socialService.CreatePostAsync(request, uploads, ct); }
+        var createdByUserId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        try { return await socialService.CreatePostAsync(request, createdByUserId, uploads, ct); }
         finally { foreach (var upload in uploads) await upload.Content.DisposeAsync(); }
     }
 

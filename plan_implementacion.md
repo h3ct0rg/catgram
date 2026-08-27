@@ -101,7 +101,7 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 2 — Refugios y animales
 
-**Estado:** [ ] Parcialmente implementada; pendiente de validación del usuario
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario
 **Historias:** US-010 a US-014 y US-090 a US-093.
 
 **Entregables**
@@ -112,7 +112,7 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 - [x] Carga de archivos a MinIO con validación de MIME y tamaño; antivirus queda pendiente de infraestructura.
 - [x] Perfil público del animal mediante endpoint preparado para la ficha de Rocky.
 - [x] Perfil público del refugio con animales.
-- [ ] Generación automática de thumbnails.
+- [x] Generación automática de thumbnails (ImageSharp, solo imágenes; video queda pendiente de una librería de extracción de frames).
 - [x] URLs firmadas de MinIO para los medios.
 
 **Criterios de salida**
@@ -123,22 +123,22 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 3 — Feed público, publicaciones e historias
 
-**Estado:** [ ] Parcialmente implementada; pendiente de validación del usuario
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario
 **Historias:** US-020 a US-034 y US-070 a US-074.
 
 **Entregables**
 
 - [x] Crear, editar, ocultar y destacar publicaciones.
 - [x] Asociar publicación a animal, refugio, ubicación, hashtags y galería multimedia.
-- [x] Feed público con paginación por cursor.
+- [x] Feed público con paginación por cursor (recientes) y por offset (populares).
 - [x] Historias con expiración a 24 horas, contador de vistas y asociación a animal.
-- [x] Endpoints públicos y administrativos preparados para el feed y stories.
-- [x] Infinite scroll integrado en la pantalla final del frontend.
-- [x] Ordenamiento inicial: recientes y populares.
-- [ ] Open Graph para que los enlaces compartidos muestren imagen, nombre, descripción y refugio.
-- [x] Reproducir la base visual del feed: header, stories, tarjetas, estados, navegación inferior y glassmorphism.
+- [x] Endpoints públicos y administrativos preparados para el feed y stories, incluyendo `GET /api/v1/social/posts/{id}` para publicación individual.
+- [x] Infinite scroll real integrado en el frontend, contra el feed paginado del backend (ya no es una simulación local).
+- [x] Ordenamiento real: recientes (por fecha) y populares (por cantidad de likes).
+- [x] Open Graph (`GET /p/{id}`) para que los enlaces compartidos muestren imagen, nombre del animal, refugio, descripción y URL; redirige al humano hacia la SPA.
+- [x] Reproducir la base visual del feed: header, stories, tarjetas, estados, navegación inferior y glassmorphism. Incluye ahora un visor de historias real (pantalla completa, navegación, `/stories/:id`).
 
-**Arquitectura frontend:** la interfaz quedó separada por features y componentes reutilizables; `main.tsx` solo monta la aplicación, `app/App.tsx` compone la navegación, `services/` centraliza HTTP y `features/` contiene la UI de cada dominio.
+**Arquitectura frontend:** la interfaz quedó separada por features y componentes reutilizables; `main.tsx` monta la aplicación envuelta en `SessionProvider`; `app/App.tsx` define las rutas con `react-router-dom`; `context/SessionContext.tsx` centraliza sesión/rol derivados del JWT; `services/apiClient.ts` centraliza HTTP (con inyección de `Authorization` y manejo de 401) y `features/`/`components/` contienen la UI de cada dominio.
 
 **Criterios de salida**
 
@@ -148,25 +148,33 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 4 — Engagement y notificaciones
 
-**Estado:** [ ] No implementada  
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario y de pruebas contra infraestructura real (Postgres/RabbitMQ/MinIO)
 **Historias:** US-040 a US-074, US-120 a US-132.
 
 **Entregables**
 
-- [ ] Likes idempotentes y contadores consistentes.
-- [ ] Comentarios, respuestas, eliminación propia y moderación.
-- [ ] Reporte de contenido y usuario desde UI pública.
-- [ ] Compartir por Web Share API, copiar enlace y enlaces a WhatsApp/Facebook/X.
-- [ ] Seguir/dejar de seguir animales.
-- [ ] Publicar eventos de dominio en RabbitMQ: like, comentario, respuesta, cambio de estado y nueva publicación.
-- [ ] Worker de notificaciones con reintentos, dead-letter queue e idempotencia.
-- [ ] Centro de notificaciones y preferencias básicas.
+- [x] Likes idempotentes (índice único `PostId+UserId`) y contadores consistentes, calculados en el backend.
+- [x] Comentarios, respuestas (un nivel de anidamiento), eliminación propia y moderación básica (ocultar por Admin/SuperAdmin).
+- [x] Reporte de contenido (publicación/comentario) y usuario desde UI autenticada (solo creación; la bandeja de revisión es Fase 5).
+- [x] Compartir por Web Share API con fallback a WhatsApp/Facebook/X y copiar enlace.
+- [x] Seguir/dejar de seguir animales, con botón en el perfil del animal.
+- [x] Eventos de dominio en RabbitMQ: like, comentario, respuesta, cambio de estado de adopción y nueva publicación (fan-out por seguidor).
+- [x] Worker de notificaciones con dead-letter queue nativa de RabbitMQ, idempotencia vía tabla propia (`worker_processed_events`) y despacho por tipo de evento.
+- [x] Centro de notificaciones in-app (creadas sincrónicamente por la API) con preferencias básicas por tipo, campana con contador de no leídas (polling) en el frontend.
+
+**Decisiones técnicas de esta fase:**
+- Las notificaciones in-app las crea la API en el mismo request que la acción (no dependen de RabbitMQ/worker); RabbitMQ + worker quedan exclusivamente para el envío de email, preservando el criterio de que una caída del consumidor no bloquee la acción principal.
+- Se introdujeron migraciones EF Core reales (`Database.MigrateAsync`), reemplazando `EnsureCreatedAsync`, para soportar de forma versionada las tablas nuevas de esta fase.
+- El feed (`GET /api/v1/social/feed`) ahora devuelve además nombre de refugio/animal, estado de adopción, contadores de like/comentario y si el usuario actual dio like, para que el frontend deje de mostrar datos simulados.
+- El frontend migró de un router hash artesanal a `react-router-dom`, habilitando URLs por publicación (`/p/:id`), por animal (`/animals/:id`), por historia (`/stories/:id`) y de notificaciones (`/notifications`).
 
 **Criterios de salida**
 
-- Las acciones repetidas no duplican likes ni notificaciones.
-- La caída temporal del consumidor RabbitMQ no bloquea la publicación principal.
-- Un usuario recibe novedades de animales que sigue.
+- Las acciones repetidas no duplican likes ni notificaciones (verificado a nivel de lógica/índices; falta prueba end-to-end contra una instancia real).
+- La caída temporal del consumidor RabbitMQ no bloquea la publicación principal (las notificaciones in-app y la acción del usuario no dependen del worker).
+- Un usuario recibe novedades de animales que sigue (evento + notificación in-app por seguidor).
+
+**Pendiente de verificación (no ejecutable en este entorno de trabajo):** no hay Postgres/RabbitMQ/MinIO corriendo localmente ni `docker-compose` en el repo, por lo que esta fase se validó a nivel de compilación (`dotnet build`, migraciones generadas con `dotnet ef migrations add`, `tsc -b`, `vite build`), no con una corrida real de extremo a extremo. Falta además: probar el ordenamiento "populares" con datos reales, y una revisión visual de las pantallas nuevas contra `design/` con el equipo de producto (no existen mockups para comentarios, compartir, reportar, notificaciones ni el visor de historias, así que se construyeron extendiendo los tokens existentes).
 
 ### Fase 5 — Moderación, auditoría y administración
 

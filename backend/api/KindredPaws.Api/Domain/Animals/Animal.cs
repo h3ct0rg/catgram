@@ -30,6 +30,7 @@ public sealed class AnimalMedia
     public Guid AnimalId { get; set; }
     public Animal? Animal { get; set; }
     public string ObjectKey { get; set; } = string.Empty;
+    public string? ThumbnailObjectKey { get; set; }
     public string ContentType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public bool IsPrimary { get; set; }

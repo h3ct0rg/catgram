@@ -1,23 +1,20 @@
+import { Link } from 'react-router-dom'
 import { Story } from '../../types/domain'
 
-type Props = {
-  stories: Story[]
-  onAdd: () => void
-  onOpen: () => void
-}
+type Props = { stories: Story[] }
 
-export function StoryRail({ stories, onAdd, onOpen }: Props) {
+export function StoryRail({ stories }: Props) {
   return (
     <div className="stories" aria-label="Historias">
-      <button className="story add-story" onClick={onAdd}>
+      <Link className="story add-story" to="/animals/new">
         <span>＋</span>
         <small>Publicar</small>
-      </button>
+      </Link>
       {stories.map((story) => (
-        <button className={`story ${story.viewed ? 'viewed' : ''}`} key={story.id} onClick={onOpen}>
-          <img src={story.image} alt={story.name} />
-          <small>{story.name}</small>
-        </button>
+        <Link className="story" to={`/stories/${story.id}`} key={story.id}>
+          <img src={story.mediaUrl} alt={story.animalName} />
+          <small>{story.animalName}</small>
+        </Link>
       ))}
     </div>
   )
