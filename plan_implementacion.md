@@ -56,7 +56,7 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 0 — Preparación y decisiones cerradas
 
-**Estado:** [ ] Implementada técnicamente; pendiente de validación del usuario  
+**Estado:** [ ] Implementada técnicamente; pendiente de validación del usuario
 **Objetivo:** dejar lista la base técnica y confirmar los contratos que afectan a todo el producto.
 
 **Entregables**
@@ -76,19 +76,22 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 1 — Identidad, invitaciones y RBAC
 
-**Estado:** [ ] No implementada  
+**Estado:** [ ] Implementada técnicamente; pendiente de validación del usuario  
 **Historias:** US-001 a US-007.
 
 **Entregables**
 
-- [ ] ASP.NET Core Identity con usuario, roles, estado activo/bloqueado y auditoría.
-- [ ] Seed de roles y Super Admin inicial `superadmin / superadmin` para desarrollo.
-- [ ] Forzar cambio de contraseña en primer acceso y documentar rotación inmediata.
-- [ ] Login/logout local del Super Admin.
-- [ ] Google OAuth restringido a invitaciones válidas para el resto de usuarios.
-- [ ] Gestión de invitaciones: emitir, consultar, revocar, expirar y consumir una sola vez.
-- [ ] Pantallas React de login, aceptación de invitación, sesión expirada y acceso denegado.
-- [ ] Guardas de rutas y matriz de permisos.
+- [x] ASP.NET Core Identity con usuario, roles y estado activo/bloqueado.
+- [x] Seed de roles y Super Admin inicial `superadmin / superadmin` para desarrollo.
+- [x] Forzar cambio de contraseña en primer acceso y documentar rotación inmediata.
+- [x] Login local del Super Admin y emisión de JWT.
+- [x] Google OAuth restringido a invitaciones válidas para el resto de usuarios.
+- [x] Gestión de invitaciones: emitir, consultar, revocar, expirar y consumir una sola vez.
+- [x] Pantalla React base de login, integración del login local y entrada al flujo Google por invitación.
+- [x] Pantallas de aceptación de invitación, sesión expirada y acceso denegado.
+- [x] Guardas de autorización por rol en API y matriz de permisos documentada.
+
+**Nota de mensajería:** las notificaciones no se envían desde la API. La API publica eventos en RabbitMQ y `backend/worker/KindredPaws.NotificationWorker` los consume para enviar correos. La integración productiva de plantillas, SMTP administrado, reintentos con dead-letter queue y observabilidad queda en la fase de infraestructura/notificaciones.
 
 **Criterios de salida**
 
@@ -98,18 +101,19 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 2 — Refugios y animales
 
-**Estado:** [ ] No implementada  
+**Estado:** [ ] Parcialmente implementada; pendiente de validación del usuario
 **Historias:** US-010 a US-014 y US-090 a US-093.
 
 **Entregables**
 
-- [ ] Entidades y endpoints de refugio, animal, galería y ubicación.
-- [ ] Estados: Disponible, En proceso, Adoptado, No disponible y Fallecido.
-- [ ] Alta/edición de animal con validación, foto principal y galería.
-- [ ] Carga de archivos a MinIO con validación de MIME, tamaño, extensión y antivirus pendiente de definir.
-- [ ] Perfil público del animal según el diseño de Rocky.
-- [ ] Perfil público del refugio con animales y publicaciones.
-- [ ] Generación de thumbnails y URLs firmadas/optimizadas.
+- [x] Entidades y endpoints de refugio, animal, galería y ubicación.
+- [x] Estados: Disponible, En proceso, Adoptado, No disponible y Fallecido.
+- [x] Alta/edición de animal con validación, foto principal y galería.
+- [x] Carga de archivos a MinIO con validación de MIME y tamaño; antivirus queda pendiente de infraestructura.
+- [x] Perfil público del animal mediante endpoint preparado para la ficha de Rocky.
+- [x] Perfil público del refugio con animales.
+- [ ] Generación automática de thumbnails.
+- [x] URLs firmadas de MinIO para los medios.
 
 **Criterios de salida**
 
@@ -119,18 +123,22 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 3 — Feed público, publicaciones e historias
 
-**Estado:** [ ] No implementada  
+**Estado:** [ ] Parcialmente implementada; pendiente de validación del usuario
 **Historias:** US-020 a US-034 y US-070 a US-074.
 
 **Entregables**
 
-- [ ] Crear, editar, ocultar, destacar y eliminar publicaciones.
-- [ ] Asociar publicación a animal, refugio, ubicación, hashtags y galería multimedia.
-- [ ] Feed público con paginación por cursor e infinite scroll.
-- [ ] Ordenamientos: recientes, populares, destacados y necesita adopción.
+- [x] Crear, editar, ocultar y destacar publicaciones.
+- [x] Asociar publicación a animal, refugio, ubicación, hashtags y galería multimedia.
+- [x] Feed público con paginación por cursor.
+- [x] Historias con expiración a 24 horas, contador de vistas y asociación a animal.
+- [x] Endpoints públicos y administrativos preparados para el feed y stories.
+- [x] Infinite scroll integrado en la pantalla final del frontend.
+- [x] Ordenamiento inicial: recientes y populares.
 - [ ] Open Graph para que los enlaces compartidos muestren imagen, nombre, descripción y refugio.
-- [ ] Historias con expiración a 24 horas, navegación, contador de vistas y asociación a animal.
-- [ ] Reproducir fielmente header, tarjetas de feed, barra inferior, stories y formulario de `design/`.
+- [x] Reproducir la base visual del feed: header, stories, tarjetas, estados, navegación inferior y glassmorphism.
+
+**Arquitectura frontend:** la interfaz quedó separada por features y componentes reutilizables; `main.tsx` solo monta la aplicación, `app/App.tsx` compone la navegación, `services/` centraliza HTTP y `features/` contiene la UI de cada dominio.
 
 **Criterios de salida**
 

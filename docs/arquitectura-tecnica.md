@@ -11,10 +11,10 @@ ASP.NET Core .NET 10 API
    ├── Posts & Stories
    ├── Engagement & Moderation
    ├── Adoption (posterior al MVP)
-   └── Notifications publisher
-        │                         │
-        ▼                         ▼
-   PostgreSQL                 RabbitMQ → Notification Worker
+   └── Notifications publisher ───────┐
+        │                             │
+        ▼                             ▼
+   PostgreSQL                 RabbitMQ → Notification Worker → SMTP/Mail provider
         │
       Redis (cache/rate limit, posterior)
 
@@ -54,3 +54,34 @@ Usar `UUID` como identificador público, timestamps UTC, concurrencia optimista 
 ## Contratos de configuración
 
 La configuración sugerida está en `.env.example`. En .NET se recomienda mapearla mediante `__` a secciones como `ConnectionStrings`, `Minio`, `RabbitMq` y `Authentication:Google`.
+
+## Estructura de la API
+
+```text
+backend/api/KindredPaws.Api/
+├── Controllers/              # HTTP: request/response y autorización
+├── Application/              # Casos de uso y reglas de aplicación
+│   ├── Auth/                 # Login, OAuth, invitaciones
+│   ├── Users/                # Administración de usuarios
+│   └── Shared/               # Contratos de eventos y correo
+├── Domain/                   # Entidades, constantes y reglas puras
+└── Infrastructure/          # EF Core, repositorios y adaptadores externos
+
+backend/worker/KindredPaws.NotificationWorker/
+└── WorkerServices.cs         # Consumidor RabbitMQ y envío de correo
+
+frontend/src/
+├── app/                       # Composición y navegación de la aplicación
+├── components/                # Componentes compartidos de layout
+├── features/                  # UI y casos de uso por dominio
+│   ├── animals/
+│   ├── auth/
+│   └── feed/
+├── services/                  # Cliente HTTP y adaptadores frontend
+├── types/                     # Contratos TypeScript
+└── styles.css                 # Tokens y estilos globales
+```
+
+Regla de dependencia: un controller no consulta `DbContext`, no publica eventos y no envía correos. La API publica eventos en RabbitMQ desde servicios de aplicación; el worker los consume y llama al proveedor SMTP mediante otra abstracción. Así una caída del correo no bloquea el request HTTP y se puede reintentar la entrega desde la cola.
+
+El feed se consulta por cursor usando `CreatedAt` y límite de página. Las publicaciones públicas excluyen contenido oculto/eliminado; las historias se filtran por `ExpiresAt` en UTC. Los objetos multimedia se guardan en MinIO y las respuestas exponen URLs firmadas, nunca binarios almacenados en PostgreSQL.

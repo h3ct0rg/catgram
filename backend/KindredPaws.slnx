@@ -2,4 +2,10 @@
   <Folder Name="/api/">
     <Project Path="api/KindredPaws.Api/KindredPaws.Api.csproj" />
   </Folder>
+  <Folder Name="/shared/">
+    <Project Path="shared/KindredPaws.Contracts/KindredPaws.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/worker/">
+    <Project Path="worker/KindredPaws.NotificationWorker/KindredPaws.NotificationWorker.csproj" />
+  </Folder>
 </Solution>
