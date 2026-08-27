@@ -1,11 +1,24 @@
+import { useNavigate } from 'react-router-dom'
+import { useSession } from '../../context/SessionContext'
+
 type Props = {
   onHome: () => void
   onSearch: () => void
   onCreate: () => void
-  onProfile: () => void
 }
 
-export function BottomNav({ onHome, onSearch, onCreate, onProfile }: Props) {
+const ADMIN_ROLES = ['Administrador', 'SuperAdministrador']
+
+export function BottomNav({ onHome, onSearch, onCreate }: Props) {
+  const navigate = useNavigate()
+  const session = useSession()
+
+  function goToProfile() {
+    if (!session.isAuthenticated) navigate('/login')
+    else if (session.roles.some((role) => ADMIN_ROLES.includes(role))) navigate('/admin')
+    else navigate('/notifications')
+  }
+
   return (
     <nav className="bottom-nav">
       <button className="active" onClick={onHome}>
@@ -17,7 +30,7 @@ export function BottomNav({ onHome, onSearch, onCreate, onProfile }: Props) {
       <button className="create" onClick={onCreate}>
         ＋
       </button>
-      <button onClick={onProfile}>
+      <button onClick={goToProfile}>
         ♙<small>Perfil</small>
       </button>
     </nav>

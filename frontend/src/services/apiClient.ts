@@ -8,6 +8,15 @@ import {
   NotificationType,
   ReportTargetType,
 } from '../types/social'
+import {
+  AdminReport,
+  AdminUser,
+  AnimalStats,
+  AuditAction,
+  AuditLogEntry,
+  DashboardSummary,
+  ReportStatus,
+} from '../types/admin'
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5080'
 
@@ -200,4 +209,71 @@ export async function updateNotificationPreference(
     method: 'PUT',
     body: JSON.stringify({ enabled }),
   })
+}
+
+// --- Shares (view/share counters used by the dashboard and per-animal stats) ---
+
+export async function registerPostShare(postId: string): Promise<void> {
+  await request<void>(`/api/v1/social/posts/${postId}/shares`, { method: 'POST' })
+}
+
+// --- Admin: users ---
+
+export function getUsers(): Promise<AdminUser[]> {
+  return request<AdminUser[]>('/api/v1/users')
+}
+
+export async function setUserStatus(userId: string, active: boolean): Promise<void> {
+  await request<void>(`/api/v1/users/${userId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active }),
+  })
+}
+
+export async function assignUserRole(userId: string, role: string): Promise<void> {
+  await request<void>(`/api/v1/users/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  })
+}
+
+// --- Admin: moderation inbox ---
+
+export function getReports(
+  params: { status?: ReportStatus; targetType?: ReportTargetType } = {},
+): Promise<AdminReport[]> {
+  const query = new URLSearchParams()
+  if (params.status) query.set('status', params.status)
+  if (params.targetType) query.set('targetType', params.targetType)
+  const qs = query.toString()
+  return request<AdminReport[]>(`/api/v1/reports${qs ? `?${qs}` : ''}`)
+}
+
+export function resolveReport(id: string, status: ReportStatus): Promise<AdminReport> {
+  return request<AdminReport>(`/api/v1/reports/${id}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// --- Admin: audit log ---
+
+export function getAuditLogs(
+  params: { action?: AuditAction; entityType?: string; before?: string; pageSize?: number } = {},
+): Promise<AuditLogEntry[]> {
+  const query = new URLSearchParams({ pageSize: String(params.pageSize ?? 50) })
+  if (params.action) query.set('action', params.action)
+  if (params.entityType) query.set('entityType', params.entityType)
+  if (params.before) query.set('before', params.before)
+  return request<AuditLogEntry[]>(`/api/v1/audit-logs?${query.toString()}`)
+}
+
+// --- Admin: dashboard and per-animal stats ---
+
+export function getDashboardSummary(): Promise<DashboardSummary> {
+  return request<DashboardSummary>('/api/v1/dashboard/summary')
+}
+
+export function getAnimalStats(animalId: string): Promise<AnimalStats> {
+  return request<AnimalStats>(`/api/v1/animals/${animalId}/stats`)
 }

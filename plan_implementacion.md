@@ -56,7 +56,7 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 0 — Preparación y decisiones cerradas
 
-**Estado:** [ ] Implementada técnicamente; pendiente de validación del usuario
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario (existe `.github/workflows/ci.yml` que compila backend y frontend en cada push/PR; aún no ejecuta pruebas automatizadas ni valida formato — eso queda cubierto por Fase 7, que es donde se introduce la suite de pruebas)
 **Objetivo:** dejar lista la base técnica y confirmar los contratos que afectan a todo el producto.
 
 **Entregables**
@@ -76,7 +76,7 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 1 — Identidad, invitaciones y RBAC
 
-**Estado:** [ ] Implementada técnicamente; pendiente de validación del usuario  
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario. Corregido durante Fase 4: el JWT se emitía sin `issuer`, por lo que fallaba la validación (`ValidateIssuer=true`) en cualquier endpoint `[Authorize]` — nadie lo había notado porque el frontend original nunca enviaba el header `Authorization`. También se corrigió el seed de `superadmin/superadmin`, que violaba la propia política de contraseñas configurada (mínimo 12 caracteres, mayúscula y dígito) e impedía que el seed se creara.  
 **Historias:** US-001 a US-007.
 
 **Entregables**
@@ -178,23 +178,25 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 5 — Moderación, auditoría y administración
 
-**Estado:** [ ] No implementada  
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario y de pruebas contra infraestructura real
 **Historias:** US-100 a US-111.
 
 **Entregables**
 
-- [ ] Bandeja de reportes con filtros por estado y tipo.
-- [ ] Ocultar/eliminar contenido y bloquear usuarios.
-- [ ] Auditoría de creación, modificación, eliminación, cambios de rol y estados de adopción.
-- [ ] Dashboard con usuarios, refugios, animales, publicaciones, historias e interacciones.
-- [ ] Estadísticas por animal: vistas, likes, comentarios, compartidos y adopción.
-- [ ] Políticas de retención para logs y auditoría.
+- [x] Bandeja de reportes con filtros por estado y tipo (`GET /api/v1/reports?status=&targetType=`, `POST /api/v1/reports/{id}/resolve`) y UI en `/admin/reports`.
+- [x] Ocultar/eliminar contenido y bloquear usuarios (reutiliza `HidePostAsync`/`CommentService.HideAsync` de Fase 3/4 y `PATCH /api/v1/users/{id}/status` de Fase 1; ahora todos quedan auditados) con UI en `/admin/users`.
+- [x] Auditoría de creación, modificación, eliminación, cambios de rol y estados de adopción: nueva entidad `AuditLog` (`GET /api/v1/audit-logs`, filtrable por acción/entidad) que registra activar/desactivar usuario, cambio de rol, ocultar publicación/comentario, cambio de estado de adopción y resolución de reportes. Acotado a acciones sensibles de moderación/administración, no a cada creación rutinaria de contenido.
+- [x] Dashboard con usuarios, refugios, animales, publicaciones, historias e interacciones (`GET /api/v1/dashboard/summary`) con UI en `/admin`.
+- [x] Estadísticas por animal: vistas, likes, comentarios, compartidos y adopción (`GET /api/v1/animals/{id}/stats`); se agregó `Post.ViewCount`/`Post.ShareCount` (incrementados al abrir una publicación y al compartirla) para tener datos reales que agregar. Visible para Admin/SuperAdmin dentro del perfil del animal.
+- [x] Políticas de retención para logs y auditoría: `DELETE /api/v1/audit-logs/purge?olderThanDays=180` (SuperAdmin) para purgar manualmente; **no** hay todavía un job programado que la ejecute automáticamente — depende de la infraestructura de scheduling que introduce la Fase 7.
+
+**Frontend:** nueva sección `/admin` (protegida por `RequireRole`, solo Administrador/SuperAdministrador) con pestañas Dashboard/Reportes/Usuarios/Auditoría; UI utilitaria (tablas y filtros simples, sin diseño pulido) ya que no existen mockups de administración en `design/`.
 
 **Criterios de salida**
 
-- Un moderador puede resolver un reporte con trazabilidad.
-- El Super Admin puede identificar quién hizo una modificación sensible.
-- Las métricas del dashboard coinciden con consultas verificables.
+- Un moderador puede resolver un reporte con trazabilidad (queda un `AuditLog` de tipo `ReportResolved`).
+- El Super Admin puede identificar quién hizo una modificación sensible (bandeja de auditoría con actor, acción, entidad y fecha).
+- Las métricas del dashboard coinciden con consultas verificables (agregados directos de EF Core sobre las mismas tablas de dominio; sin probar aún contra datos reales por falta de infraestructura en este entorno).
 
 ### Fase 6 — Descubrimiento y adopción
 

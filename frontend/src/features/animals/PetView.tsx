@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getAnimal } from '../../services/apiClient'
+import { useSession } from '../../context/SessionContext'
+import { getAnimal, getAnimalStats } from '../../services/apiClient'
 import { Animal } from '../../types/domain'
+import { AnimalStats } from '../../types/admin'
 import {
   adoptionStatusColor,
   adoptionStatusIcon,
@@ -10,13 +12,18 @@ import {
 import { ShareSheet } from '../feed/ShareSheet'
 import { FollowButton } from './FollowButton'
 
+const ADMIN_ROLES = ['Administrador', 'SuperAdministrador']
+
 export function PetView() {
   const { animalId } = useParams<{ animalId: string }>()
   const navigate = useNavigate()
+  const session = useSession()
   const [animal, setAnimal] = useState<Animal | null>(null)
+  const [stats, setStats] = useState<AnimalStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showShare, setShowShare] = useState(false)
+  const isAdmin = session.roles.some((role) => ADMIN_ROLES.includes(role))
 
   useEffect(() => {
     if (!animalId) return
@@ -36,6 +43,13 @@ export function PetView() {
       cancelled = true
     }
   }, [animalId])
+
+  useEffect(() => {
+    if (!animalId || !isAdmin) return
+    getAnimalStats(animalId)
+      .then(setStats)
+      .catch(() => undefined)
+  }, [animalId, isAdmin])
 
   if (loading) {
     return (
@@ -107,6 +121,37 @@ export function PetView() {
         <h2>ⓘ &nbsp;Acerca de {animal.name}</h2>
         <p>{animal.description}</p>
       </section>
+      {isAdmin && stats && (
+        <section className="glass-card animal-stats">
+          <h2>📊 &nbsp;Alcance (solo staff)</h2>
+          <div className="admin-grid">
+            <div className="admin-tile">
+              <strong>{stats.postCount}</strong>
+              <span>Publicaciones</span>
+            </div>
+            <div className="admin-tile">
+              <strong>{stats.totalLikes}</strong>
+              <span>Likes</span>
+            </div>
+            <div className="admin-tile">
+              <strong>{stats.totalComments}</strong>
+              <span>Comentarios</span>
+            </div>
+            <div className="admin-tile">
+              <strong>{stats.totalViews}</strong>
+              <span>Vistas</span>
+            </div>
+            <div className="admin-tile">
+              <strong>{stats.totalShares}</strong>
+              <span>Compartidos</span>
+            </div>
+            <div className="admin-tile">
+              <strong>{stats.followerCount}</strong>
+              <span>Seguidores</span>
+            </div>
+          </div>
+        </section>
+      )}
       {gallery.length > 0 && (
         <>
           <h2 className="section-title">Galería</h2>

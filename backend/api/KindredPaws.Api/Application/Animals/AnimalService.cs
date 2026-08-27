@@ -1,6 +1,8 @@
+using KindredPaws.Api.Application.Audit;
 using KindredPaws.Api.Application.Notifications;
 using KindredPaws.Api.Application.Shared;
 using KindredPaws.Api.Domain.Animals;
+using KindredPaws.Api.Domain.Audit;
 using KindredPaws.Api.Domain.Identity;
 using KindredPaws.Api.Domain.Notifications;
 using KindredPaws.Api.Domain.Shelters;
@@ -16,11 +18,15 @@ public sealed class AnimalService(
     ShelterRepository shelters,
     AnimalRepository animals,
     FollowRepository follows,
+    SocialRepository posts,
+    LikeRepository likes,
+    CommentRepository comments,
     IMediaStorage mediaStorage,
     IThumbnailGenerator thumbnailGenerator,
     UserManager<ApplicationUser> userManager,
     INotificationService notifications,
-    IEventPublisher eventPublisher) : IAnimalService
+    IEventPublisher eventPublisher,
+    IAuditService audit) : IAnimalService
 {
     public async Task<ShelterResponse> CreateShelterAsync(CreateShelterRequest r, CancellationToken ct)
     {
@@ -34,13 +40,17 @@ public sealed class AnimalService(
         var animal = new Animal { ShelterId = shelter.Id, Shelter = shelter, Name = r.Name.Trim(), Species = r.Species, Sex = r.Sex, Size = r.Size, AgeMonths = r.AgeMonths, Breed = r.Breed, Description = r.Description.Trim(), Location = r.Location };
         await animals.AddAsync(animal, ct); await animals.SaveAsync(ct); return await ToResponseAsync(animal, ct);
     }
-    public async Task<AnimalResponse> UpdateAsync(Guid id, UpdateAnimalRequest r, CancellationToken ct)
+    public async Task<AnimalResponse> UpdateAsync(Guid id, UpdateAnimalRequest r, Guid actorUserId, CancellationToken ct)
     {
         var animal = await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
         var previousStatus = animal.AdoptionStatus;
         animal.Name = r.Name.Trim(); animal.Species = r.Species; animal.Sex = r.Sex; animal.Size = r.Size; animal.AgeMonths = r.AgeMonths; animal.Breed = r.Breed; animal.Description = r.Description.Trim(); animal.Location = r.Location; animal.AdoptionStatus = r.AdoptionStatus; animal.UpdatedAt = DateTimeOffset.UtcNow;
         await animals.SaveAsync(ct);
-        if (previousStatus != animal.AdoptionStatus) await NotifyAdoptionStatusChangedAsync(animal, previousStatus, ct);
+        if (previousStatus != animal.AdoptionStatus)
+        {
+            await audit.RecordAsync(actorUserId, AuditAction.AdoptionStatusChanged, "Animal", id, $"{previousStatus} -> {animal.AdoptionStatus}", ct);
+            await NotifyAdoptionStatusChangedAsync(animal, previousStatus, ct);
+        }
         return await ToResponseAsync(animal, ct);
     }
     private async Task NotifyAdoptionStatusChangedAsync(Animal animal, AdoptionStatus previousStatus, CancellationToken ct)
@@ -81,6 +91,16 @@ public sealed class AnimalService(
         await thumbnail.Value.Content.DisposeAsync();
         return thumbnailKey;
     }
+    public async Task<AnimalStatsResponse> GetStatsAsync(Guid animalId, CancellationToken ct)
+    {
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var (postCount, totalViews, totalShares, postIds) = await posts.GetAnimalPostStatsAsync(animalId, ct);
+        var totalLikes = postIds.Count == 0 ? 0 : (await likes.CountManyAsync(postIds, ct)).Values.Sum();
+        var totalComments = postIds.Count == 0 ? 0 : (await comments.CountManyAsync(postIds, ct)).Values.Sum();
+        var followerCount = await follows.CountAsync(animalId, ct);
+        return new AnimalStatsResponse(animal.Id, animal.Name, animal.AdoptionStatus, postCount, totalLikes, totalComments, totalViews, totalShares, followerCount);
+    }
+
     private static ShelterResponse ToResponse(Shelter x) => new(x.Id, x.Name, x.Description, x.Address, x.City, x.Country, x.Phone, x.WhatsApp, x.Email, x.Animals.Count);
     private async Task<AnimalMediaResponse> ToMediaResponseAsync(AnimalMedia m, CancellationToken ct) => new(m.Id, await mediaStorage.GetUrlAsync(m.ObjectKey, ct), m.ThumbnailObjectKey is null ? null : await mediaStorage.GetUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
     private async Task<AnimalResponse> ToResponseAsync(Animal x, CancellationToken ct) => new(x.Id, x.ShelterId, x.Shelter?.Name ?? "", x.Name, x.Species, x.Sex, x.Size, x.AgeMonths, x.Breed, x.Description, x.AdoptionStatus, x.Location, (await Task.WhenAll(x.Media.Select(m => ToMediaResponseAsync(m, ct)))).ToArray());

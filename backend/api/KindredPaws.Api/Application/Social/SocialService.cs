@@ -1,7 +1,9 @@
 using KindredPaws.Api.Application.Animals;
+using KindredPaws.Api.Application.Audit;
 using KindredPaws.Api.Application.Notifications;
 using KindredPaws.Api.Application.Shared;
 using KindredPaws.Api.Domain.Animals;
+using KindredPaws.Api.Domain.Audit;
 using KindredPaws.Api.Domain.Identity;
 using KindredPaws.Api.Domain.Notifications;
 using KindredPaws.Api.Domain.Social;
@@ -22,7 +24,8 @@ public sealed class SocialService(
     IThumbnailGenerator thumbnailGenerator,
     UserManager<ApplicationUser> userManager,
     INotificationService notifications,
-    IEventPublisher eventPublisher) : ISocialService
+    IEventPublisher eventPublisher,
+    IAuditService audit) : ISocialService
 {
     public async Task<PostResponse> CreatePostAsync(CreatePostRequest r, Guid createdByUserId, IReadOnlyCollection<MediaUpload> media, CancellationToken ct)
     {
@@ -41,9 +44,10 @@ public sealed class SocialService(
         return await ToResponseAsync(post, animal, null, ct);
     }
 
-    public async Task HidePostAsync(Guid id, CancellationToken ct)
+    public async Task HidePostAsync(Guid id, Guid actorUserId, CancellationToken ct)
     {
         var post = await repository.GetPostAsync(id, ct) ?? throw new KeyNotFoundException("Publicación no encontrada."); post.Visibility = ContentVisibility.Hidden; await repository.SaveAsync(ct);
+        await audit.RecordAsync(actorUserId, AuditAction.PostHidden, "Post", id, null, ct);
     }
 
     public async Task<PostResponse> GetPostAsync(Guid id, Guid? currentUserId, CancellationToken ct)
@@ -87,6 +91,10 @@ public sealed class SocialService(
         var animal = (await repository.GetAnimalsByIdsAsync([story.AnimalId], ct)).GetValueOrDefault(story.AnimalId);
         return await ToStoryResponseAsync(story, animal, ct);
     }
+
+    public Task RegisterPostViewAsync(Guid id, CancellationToken ct) => repository.IncrementViewCountAsync(id, ct);
+
+    public Task RegisterPostShareAsync(Guid id, CancellationToken ct) => repository.IncrementShareCountAsync(id, ct);
 
     public async Task<IReadOnlyCollection<StoryResponse>> GetStoriesAsync(CancellationToken ct)
     {

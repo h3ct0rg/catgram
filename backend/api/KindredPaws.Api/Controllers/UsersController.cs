@@ -17,16 +17,18 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> SetStatus(Guid id, SetStatusRequest request, CancellationToken cancellationToken)
     {
-        await userService.SetActiveAsync(id, request.Active, cancellationToken);
+        await userService.SetActiveAsync(id, request.Active, CurrentUserId, cancellationToken);
         return NoContent();
     }
 
     [HttpPut("{id:guid}/role")]
     public async Task<IActionResult> AssignRole(Guid id, AssignRoleRequest request, CancellationToken cancellationToken)
     {
-        await userService.AssignRoleAsync(id, request.Role, cancellationToken);
+        await userService.AssignRoleAsync(id, request.Role, CurrentUserId, cancellationToken);
         return NoContent();
     }
+
+    private Guid CurrentUserId => Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
 }
 
 public sealed record SetStatusRequest(bool Active);

@@ -23,7 +23,15 @@ public sealed class AnimalsController(IAnimalService animalService) : Controller
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
-    public Task<AnimalResponse> Update(Guid id, UpdateAnimalRequest request, CancellationToken cancellationToken) => animalService.UpdateAsync(id, request, cancellationToken);
+    public Task<AnimalResponse> Update(Guid id, UpdateAnimalRequest request, CancellationToken cancellationToken)
+    {
+        var actorUserId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        return animalService.UpdateAsync(id, request, actorUserId, cancellationToken);
+    }
+
+    [HttpGet("{id:guid}/stats")]
+    [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
+    public Task<AnimalStatsResponse> GetStats(Guid id, CancellationToken cancellationToken) => animalService.GetStatsAsync(id, cancellationToken);
 
     [HttpPost("{id:guid}/media")]
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]

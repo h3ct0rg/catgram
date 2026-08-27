@@ -33,7 +33,7 @@ public sealed class CommentsController(ICommentService commentService) : Control
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
     public async Task<IActionResult> Hide(Guid id, CancellationToken ct)
     {
-        await commentService.HideAsync(id, ct);
+        await commentService.HideAsync(id, CurrentUserId, ct);
         return NoContent();
     }
 

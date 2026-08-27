@@ -29,5 +29,19 @@ public sealed class SocialRepository(AppDbContext db)
     public async Task<IReadOnlyCollection<Story>> ListStoriesAsync(CancellationToken ct) => await db.Stories.AsNoTracking().Include(x => x.Views).Where(x => x.ExpiresAt > DateTimeOffset.UtcNow).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
     public Task<Story?> GetStoryAsync(Guid id, CancellationToken ct) => db.Stories.SingleOrDefaultAsync(x => x.Id == id && x.ExpiresAt > DateTimeOffset.UtcNow, ct);
     public Task AddViewAsync(StoryView view, CancellationToken ct) { db.StoryViews.Add(view); return Task.CompletedTask; }
+
+    public Task IncrementViewCountAsync(Guid postId, CancellationToken ct) =>
+        db.Posts.Where(x => x.Id == postId).ExecuteUpdateAsync(s => s.SetProperty(p => p.ViewCount, p => p.ViewCount + 1), ct);
+
+    public Task IncrementShareCountAsync(Guid postId, CancellationToken ct) =>
+        db.Posts.Where(x => x.Id == postId).ExecuteUpdateAsync(s => s.SetProperty(p => p.ShareCount, p => p.ShareCount + 1), ct);
+
+    public async Task<(int PostCount, int TotalViews, int TotalShares, IReadOnlyCollection<Guid> PostIds)> GetAnimalPostStatsAsync(Guid animalId, CancellationToken ct)
+    {
+        var posts = await db.Posts.AsNoTracking().Where(x => x.AnimalId == animalId && x.Visibility == ContentVisibility.Published)
+            .Select(x => new { x.Id, x.ViewCount, x.ShareCount }).ToListAsync(ct);
+        return (posts.Count, posts.Sum(x => x.ViewCount), posts.Sum(x => x.ShareCount), posts.Select(x => x.Id).ToArray());
+    }
+
     public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

@@ -1,5 +1,7 @@
+using KindredPaws.Api.Application.Audit;
 using KindredPaws.Api.Application.Notifications;
 using KindredPaws.Api.Application.Shared;
+using KindredPaws.Api.Domain.Audit;
 using KindredPaws.Api.Domain.Identity;
 using KindredPaws.Api.Domain.Notifications;
 using KindredPaws.Api.Domain.Social;
@@ -9,7 +11,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace KindredPaws.Api.Application.Social;
 
-public sealed class CommentService(CommentRepository comments, SocialRepository posts, UserManager<ApplicationUser> userManager, INotificationService notifications, IEventPublisher eventPublisher) : ICommentService
+public sealed class CommentService(CommentRepository comments, SocialRepository posts, UserManager<ApplicationUser> userManager, INotificationService notifications, IEventPublisher eventPublisher, IAuditService audit) : ICommentService
 {
     public async Task<CommentResponse> CreateAsync(Guid postId, Guid authorId, CreateCommentRequest r, CancellationToken ct)
     {
@@ -59,11 +61,12 @@ public sealed class CommentService(CommentRepository comments, SocialRepository 
         await comments.SaveAsync(ct);
     }
 
-    public async Task HideAsync(Guid commentId, CancellationToken ct)
+    public async Task HideAsync(Guid commentId, Guid actorUserId, CancellationToken ct)
     {
         var comment = await comments.GetAsync(commentId, ct) ?? throw new KeyNotFoundException("Comentario no encontrado.");
         comment.Visibility = ContentVisibility.Hidden;
         await comments.SaveAsync(ct);
+        await audit.RecordAsync(actorUserId, AuditAction.CommentHidden, "Comment", commentId, null, ct);
     }
 
     private static string Excerpt(string body) => body.Length <= 140 ? body : body[..140];

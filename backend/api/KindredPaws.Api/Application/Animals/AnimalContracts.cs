@@ -9,3 +9,4 @@ public sealed record UpdateAnimalRequest(string Name, AnimalSpecies Species, Ani
 public sealed record AnimalResponse(Guid Id, Guid ShelterId, string ShelterName, string Name, AnimalSpecies Species, AnimalSex Sex, AnimalSize Size, int? AgeMonths, string? Breed, string Description, AdoptionStatus AdoptionStatus, string? Location, IReadOnlyCollection<AnimalMediaResponse> Media);
 public sealed record AnimalMediaResponse(Guid Id, string Url, string? ThumbnailUrl, string ContentType, bool IsPrimary);
 public sealed record MediaUpload(string FileName, string ContentType, long Length, Stream Content, bool IsPrimary);
+public sealed record AnimalStatsResponse(Guid AnimalId, string AnimalName, AdoptionStatus AdoptionStatus, int PostCount, int TotalLikes, int TotalComments, int TotalViews, int TotalShares, int FollowerCount);

@@ -61,7 +61,7 @@ export function FeedPage() {
 
   return (
     <div className="app-shell">
-      <TopBar onHome={() => navigate('/')} onProfile={() => navigate('/login')} />
+      <TopBar onHome={() => navigate('/')} />
       <main className="feed-page">
         <div className="feed-heading">
           <div>
@@ -103,7 +103,6 @@ export function FeedPage() {
         onHome={() => navigate('/')}
         onSearch={() => undefined}
         onCreate={() => navigate('/animals/new')}
-        onProfile={() => navigate('/login')}
       />
     </div>
   )

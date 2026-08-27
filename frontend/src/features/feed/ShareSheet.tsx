@@ -1,19 +1,26 @@
 import { useState } from 'react'
+import { registerPostShare } from '../../services/apiClient'
 
 type Props = {
   url: string
   title: string
   text: string
+  postId?: string
   onClose: () => void
 }
 
-export function ShareSheet({ url, title, text, onClose }: Props) {
+export function ShareSheet({ url, title, text, postId, onClose }: Props) {
   const [copied, setCopied] = useState(false)
   const canUseWebShare = typeof navigator.share === 'function'
+
+  function trackShare() {
+    if (postId) registerPostShare(postId).catch(() => undefined)
+  }
 
   async function share() {
     try {
       await navigator.share({ title, text, url })
+      trackShare()
       onClose()
     } catch {
       // user cancelled the native share sheet — leave the fallback sheet open
@@ -24,6 +31,7 @@ export function ShareSheet({ url, title, text, onClose }: Props) {
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
+      trackShare()
     } catch {
       setCopied(false)
     }
@@ -44,13 +52,25 @@ export function ShareSheet({ url, title, text, onClose }: Props) {
           </button>
         )}
         <div className="share-links">
-          <a className="share-link" href={whatsapp} target="_blank" rel="noreferrer">
+          <a
+            className="share-link"
+            href={whatsapp}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackShare}
+          >
             🟢 WhatsApp
           </a>
-          <a className="share-link" href={facebook} target="_blank" rel="noreferrer">
+          <a
+            className="share-link"
+            href={facebook}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackShare}
+          >
             🔵 Facebook
           </a>
-          <a className="share-link" href={x} target="_blank" rel="noreferrer">
+          <a className="share-link" href={x} target="_blank" rel="noreferrer" onClick={trackShare}>
             ⚫ X
           </a>
           <button className="share-link" onClick={copyLink}>

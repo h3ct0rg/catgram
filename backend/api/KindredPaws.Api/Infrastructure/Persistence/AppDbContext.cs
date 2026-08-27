@@ -5,6 +5,7 @@ using KindredPaws.Api.Domain.Social;
 using KindredPaws.Api.Domain.Follows;
 using KindredPaws.Api.Domain.Notifications;
 using KindredPaws.Api.Domain.Moderation;
+using KindredPaws.Api.Domain.Audit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -67,5 +69,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<Report>().Property(x => x.Reason).HasMaxLength(1000).IsRequired();
         builder.Entity<Report>().HasIndex(x => new { x.TargetType, x.TargetId });
         builder.Entity<Report>().HasIndex(x => x.Status);
+
+        builder.Entity<AuditLog>().Property(x => x.EntityType).HasMaxLength(80).IsRequired();
+        builder.Entity<AuditLog>().Property(x => x.Details).HasMaxLength(1000);
+        builder.Entity<AuditLog>().HasIndex(x => x.CreatedAt);
+        builder.Entity<AuditLog>().HasIndex(x => new { x.EntityType, x.EntityId });
     }
 }

@@ -7,6 +7,14 @@ import { StateView } from '../features/auth/StateView'
 import { PetView } from '../features/animals/PetView'
 import { RegisterPetView } from '../features/animals/RegisterPetView'
 import { NotificationsPage } from '../features/social/NotificationsPage'
+import { AdminLayout } from '../features/admin/AdminLayout'
+import { DashboardPage } from '../features/admin/DashboardPage'
+import { ReportsInboxPage } from '../features/admin/ReportsInboxPage'
+import { UsersPage } from '../features/admin/UsersPage'
+import { AuditLogPage } from '../features/admin/AuditLogPage'
+import { RequireRole } from './RequireRole'
+
+const ADMIN_ROLES = ['Administrador', 'SuperAdministrador']
 
 function RootRoute() {
   const [params] = useSearchParams()
@@ -53,6 +61,19 @@ export function App() {
         <Route path="/p/:postId" element={<PostDetailPage />} />
         <Route path="/stories/:storyId" element={<StoryViewer />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireRole roles={ADMIN_ROLES}>
+              <AdminLayout />
+            </RequireRole>
+          }
+        >
+          <Route index element={<DashboardPage />} />
+          <Route path="reports" element={<ReportsInboxPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="audit" element={<AuditLogPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

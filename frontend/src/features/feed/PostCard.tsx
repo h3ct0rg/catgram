@@ -121,6 +121,7 @@ export function PostCard({ post }: Props) {
           url={shareUrl}
           title={post.animalName}
           text={`Ayuda a ${post.animalName} a encontrar un hogar`}
+          postId={post.id}
           onClose={() => setShowShare(false)}
         />
       )}

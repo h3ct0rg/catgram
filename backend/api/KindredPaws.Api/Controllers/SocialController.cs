@@ -24,10 +24,19 @@ public sealed class SocialController(ISocialService socialService) : ControllerB
 
     [HttpGet("posts/{id:guid}")]
     [AllowAnonymous]
-    public Task<PostResponse> GetPost(Guid id, CancellationToken ct)
+    public async Task<PostResponse> GetPost(Guid id, CancellationToken ct)
     {
         Guid? userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var parsed) ? parsed : null;
-        return socialService.GetPostAsync(id, userId, ct);
+        await socialService.RegisterPostViewAsync(id, ct);
+        return await socialService.GetPostAsync(id, userId, ct);
+    }
+
+    [HttpPost("posts/{id:guid}/shares")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RegisterShare(Guid id, CancellationToken ct)
+    {
+        await socialService.RegisterPostShareAsync(id, ct);
+        return NoContent();
     }
 
     [HttpPost("posts")]
@@ -46,7 +55,12 @@ public sealed class SocialController(ISocialService socialService) : ControllerB
 
     [HttpDelete("posts/{id:guid}")]
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
-    public async Task<IActionResult> HidePost(Guid id, CancellationToken ct) { await socialService.HidePostAsync(id, ct); return NoContent(); }
+    public async Task<IActionResult> HidePost(Guid id, CancellationToken ct)
+    {
+        var actorUserId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        await socialService.HidePostAsync(id, actorUserId, ct);
+        return NoContent();
+    }
 
     [HttpPost("stories")]
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
