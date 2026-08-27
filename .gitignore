@@ -1,0 +1,38 @@
+# .NET and frontend build outputs
+**/bin/
+**/obj/
+**/dist/
+**/node_modules/
+**/.vite/
+**/.turbo/
+*.dll
+*.pdb
+*.cache
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/secrets.json
+**/secrets.*.json
+
+# IDE / OS
+.vs/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+*.sln.DotSettings.user
+.DS_Store
+Thumbs.db
+
+# Test and local media
+test-results/
+TestResults/
+coverage/
+uploads/
+.npm-cache/
+*.log

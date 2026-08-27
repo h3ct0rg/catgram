@@ -1,0 +1,148 @@
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-secondary-container": "#09657f", "inverse-primary": "#adc7ff", "tertiary-container": "#c64f00", "primary-fixed": "#d8e2ff", "surface-container": "#ebedf9", "on-secondary-fixed-variant": "#004d62", "tertiary-fixed": "#ffdbcc", "on-tertiary-fixed": "#351000", "outline": "#717786", "surface-container-highest": "#e0e2ed", "on-primary-fixed": "#001a41", "on-primary-fixed-variant": "#004493", "glass-stroke": "rgba(255, 255, 255, 0.3)", "status-available": "#28A745", "error": "#ba1a1a", "tertiary": "#9e3d00", "background": "#f9f9ff", "secondary": "#0c6780", "primary-container": "#0070ea", "status-adopted": "#007BFF", "status-process": "#FFC107", "electric-blue": "#2E5BFF", "on-secondary-fixed": "#001f29", "inverse-surface": "#2d3039", "surface-variant": "#e0e2ed", "secondary-container": "#9ae1ff", "on-background": "#181c23", "surface-tint": "#005bc0", "on-tertiary-container": "#fffbff", "surface": "#f9f9ff", "secondary-fixed": "#baeaff", "surface-bright": "#f9f9ff", "on-surface-variant": "#414754", "on-error-container": "#93000a", "glass-fill": "rgba(255, 255, 255, 0.7)", "inverse-on-surface": "#eef0fb", "on-secondary": "#ffffff", "tertiary-fixed-dim": "#ffb695", "surface-container-low": "#f1f3fe", "on-error": "#ffffff", "status-unavailable": "#DC3545", "on-tertiary-fixed-variant": "#7c2e00", "on-surface": "#181c23", "sky-mist": "#E0F2F7", "surface-dim": "#d7d9e5", "secondary-fixed-dim": "#89d0ed", "primary-fixed-dim": "#adc7ff", "on-primary-container": "#fefcff", "on-primary": "#ffffff", "outline-variant": "#c1c6d7", "surface-container-high": "#e6e8f3", "primary": "#0059bb", "error-container": "#ffdad6", "on-tertiary": "#ffffff" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "glass-margin": "12px", "container-padding-desktop": "32px", "container-padding-mobile": "16px", "gutter": "16px", "base": "8px" }, "fontFamily": { "label-bold": ["Plus Jakarta Sans"], "headline-lg-mobile": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"] }, "fontSize": { "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }], "headline-lg-mobile": ["26px", { "lineHeight": "32px", "fontWeight": "800" }], "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "600" }], "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "500" }], "headline-md": ["24px", { "lineHeight": "30px", "fontWeight": "700" }], "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }], "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }] } } } };</script><style>@layer base { body { -webkit-tap-highlight-color: transparent; } .pt-safe { padding-top: env(safe-area-inset-top); } } .glass-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-background font-body-md text-on-surface"><header class="fixed top-0 w-full z-50 glass-header border-b border-glass-stroke"><div class="h-16 px-4 flex items-center pt-safe"><button class="w-10 h-10 flex items-center justify-center text-on-surface" onclick="history.back()"><span class="material-symbols-outlined">arrow_back_ios_new</span></button><h1 class="flex-1 text-center font-headline-md text-body-lg text-on-surface pr-10">Add Post</h1></div></header><main class="pt-16 min-h-screen bg-surface"><div class="flex flex-col w-full p-container-padding-mobile gap-gutter pb-32">
+<form class="flex flex-col gap-gutter" id="new-animal-form">
+<!-- Photo Upload Section -->
+<div class="relative w-full aspect-square rounded-xl overflow-hidden bg-surface-container shadow-sm group">
+<input accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="photo-upload" type="file"/>
+<div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none transition-colors duration-200 group-hover:bg-surface-container-highest" id="photo-preview-container">
+<span class="material-symbols-outlined text-headline-lg text-primary mb-2">add_a_photo</span>
+<span class="text-label-bold text-on-surface">Tap to add Primary Photo</span>
+</div>
+<img alt="" class="absolute inset-0 w-full h-full object-cover hidden pointer-events-none" id="photo-preview" src=""/>
+</div>
+<!-- Basic Info Card -->
+<div class="bg-glass-fill backdrop-blur-md rounded-xl p-4 shadow-sm relative z-0">
+<div class="absolute inset-0 rounded-xl border border-glass-stroke pointer-events-none z-0"></div>
+<div class="relative z-10 flex flex-col gap-4">
+<!-- Name -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="pet-name">Name</label>
+<input class="w-full bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 placeholder-outline-variant focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner" id="pet-name" placeholder="E.g., Luna" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- Species -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="species">Species</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner" id="species">
+<option disabled="" selected="" value="">Select...</option>
+<option value="dog">Dog</option>
+<option value="cat">Cat</option>
+<option value="other">Other</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Sex -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="sex">Sex</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner" id="sex">
+<option disabled="" selected="" value="">Select...</option>
+<option value="female">Female</option>
+<option value="male">Male</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Breed -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="breed">Breed (Optional)</label>
+<input class="w-full bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 placeholder-outline-variant focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner" id="breed" placeholder="E.g., Golden Retriever Mix" type="text"/>
+</div>
+</div>
+</div>
+<!-- Details Card -->
+<div class="bg-glass-fill backdrop-blur-md rounded-xl p-4 shadow-sm relative z-0">
+<div class="absolute inset-0 rounded-xl border border-glass-stroke pointer-events-none z-0"></div>
+<div class="relative z-10 flex flex-col gap-4">
+<div class="grid grid-cols-2 gap-4">
+<!-- Age -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="age">Age (Years/Months)</label>
+<input class="w-full bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 placeholder-outline-variant focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner" id="age" placeholder="E.g., 2 yrs" type="text"/>
+</div>
+<!-- Size -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="size">Size</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner" id="size">
+<option disabled="" selected="" value="">Select...</option>
+<option value="small">Small</option>
+<option value="medium">Medium</option>
+<option value="large">Large</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Description -->
+<div class="flex flex-col gap-1">
+<label class="text-label-sm text-on-surface-variant ml-1" for="description">Description &amp; Personality</label>
+<textarea class="w-full bg-surface/50 text-body-md text-on-surface rounded-lg px-4 py-3 placeholder-outline-variant focus:outline-none focus:ring-2 focus:ring-electric-blue transition-shadow shadow-inner resize-none" id="description" placeholder="Tell us about their quirks, favorite toys, and ideal home..." rows="4"></textarea>
+</div>
+</div>
+</div>
+<!-- Submit Button (Fixed to bottom for easy access) -->
+<div class="fixed bottom-0 left-0 right-0 p-4 bg-surface/80 backdrop-blur-md border-t border-glass-stroke z-20">
+<button class="w-full bg-electric-blue text-on-primary text-label-bold py-4 rounded-full shadow-md flex items-center justify-center gap-2 active:scale-95 transition-transform duration-200" id="submit-btn" type="submit">
+<span class="material-symbols-outlined text-[20px]">pets</span>
+        Register Pet
+      </button>
+</div>
+</form>
+</div>
+<script>
+  // Simple photo preview logic
+  const fileInput = document.getElementById('photo-upload');
+  const previewImg = document.getElementById('photo-preview');
+  const previewContainer = document.getElementById('photo-preview-container');
+
+  fileInput.addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        previewImg.classList.remove('hidden');
+        previewContainer.classList.add('hidden');
+      }
+      
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  });
+
+  // Submit animation
+  const form = document.getElementById('new-animal-form');
+  const submitBtn = document.getElementById('submit-btn');
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span> Saving...';
+    submitBtn.classList.add('opacity-80');
+    
+    // Simulate API call
+    setTimeout(() => {
+      submitBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span> Registered!';
+      submitBtn.classList.remove('bg-electric-blue');
+      submitBtn.classList.add('bg-status-available');
+      
+      // Reset form after short delay
+      setTimeout(() => {
+        form.reset();
+        previewImg.classList.add('hidden');
+        previewImg.src = '';
+        previewContainer.classList.remove('hidden');
+        submitBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">pets</span> Register Pet';
+        submitBtn.classList.remove('bg-status-available', 'opacity-80');
+        submitBtn.classList.add('bg-electric-blue');
+      }, 2000);
+    }, 1500);
+  });
+</script></main></body></html>
