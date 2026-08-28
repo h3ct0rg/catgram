@@ -36,7 +36,7 @@ export function PetView() {
         if (!cancelled) setAnimal(result)
       })
       .catch(() => {
-        if (!cancelled) setError('No pudimos encontrar a este animal.')
+        if (!cancelled) setError('No pudimos encontrar a esta mascota.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -70,7 +70,7 @@ export function PetView() {
         <button className="back-button" onClick={() => navigate('/')}>
           ‹ Volver
         </button>
-        <p className="body-copy">{error || 'Animal no encontrado.'}</p>
+        <p className="body-copy">{error || 'Mascota no encontrada.'}</p>
         <button className="primary-button" onClick={() => navigate('/')}>
           Volver al muro
         </button>

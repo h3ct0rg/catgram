@@ -1,7 +1,9 @@
 namespace KindredPaws.Api.Domain.Animals;
 
 public enum AdoptionStatus { Available, InProcess, Adopted, Unavailable, Deceased }
-public enum AnimalSpecies { Dog, Cat, Other }
+// Dog/Cat/Other keep their original ordinals (stored as int in the DB) — Bird/Rabbit are
+// appended rather than inserted, so existing rows never get silently reinterpreted.
+public enum AnimalSpecies { Dog, Cat, Other, Bird, Rabbit }
 public enum AnimalSex { Female, Male, Unknown }
 public enum AnimalSize { Small, Medium, Large }
 

@@ -24,6 +24,11 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kestrel's default MaxRequestBodySize (~28.6 MB) is lower than the 50 MB per-file media cap this
+// API enforces in code — without raising it, a multipart upload near that cap fails at the server
+// level (before reaching any controller/validation code) instead of the friendly "too large" error.
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 200 * 1024 * 1024);
+
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
@@ -47,6 +52,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
+builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection("Authentication:Google"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 builder.Services.AddAuthentication(options =>
 {
@@ -65,13 +71,6 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromSeconds(30)
     };
-})
-.AddCookie(IdentityConstants.ExternalScheme)
-.AddGoogle(options =>
-{
-    options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "not-configured";
-    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "not-configured";
-    options.CallbackPath = builder.Configuration["Authentication:Google:CallbackPath"] ?? "/api/v1/auth/google/callback";
 });
 builder.Services.AddAuthorization();
 

@@ -28,6 +28,14 @@ public sealed class AnimalRepository(AppDbContext db)
     public Task AddAsync(Animal entity, CancellationToken ct) => db.Animals.AddAsync(entity, ct).AsTask();
     public Task<Animal?> GetAsync(Guid id, CancellationToken ct) => db.Animals.Include(x => x.Shelter).Include(x => x.Media).SingleOrDefaultAsync(x => x.Id == id, ct);
 
+    // AnimalMedia.Id is a client-generated GUID (set in C#, not DB-generated). If a new AnimalMedia is
+    // only ever added via the Animal.Media navigation collection (animal.Media.Add(...)), EF Core's
+    // change tracker discovers it during DetectChanges rather than via an explicit Add — and because its
+    // key is already non-default, EF assumes it's an *existing* row and marks it Modified instead of
+    // Added, generating an UPDATE that matches zero rows (DbUpdateConcurrencyException). Adding it
+    // directly to its own DbSet here removes the ambiguity: it's unconditionally tracked as Added.
+    public Task AddMediaAsync(AnimalMedia entity, CancellationToken ct) => db.AnimalMedia.AddAsync(entity, ct).AsTask();
+
     public async Task<IReadOnlyCollection<Animal>> ListAsync(AnimalSearchFilter filter, CancellationToken ct)
     {
         var query = db.Animals.AsNoTracking().Include(x => x.Shelter).Include(x => x.Media).AsQueryable();
@@ -43,4 +51,5 @@ public sealed class AnimalRepository(AppDbContext db)
     }
 
     public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+    public void Remove(Animal entity) => db.Animals.Remove(entity);
 }

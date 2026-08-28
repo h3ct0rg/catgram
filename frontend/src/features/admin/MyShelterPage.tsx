@@ -57,99 +57,111 @@ export function MyShelterPage() {
     )
 
   return (
-    <form className="register-form" onSubmit={submit}>
-      <label>
-        Nombre
-        <input
-          value={shelter.name}
-          onChange={(event) => update('name', event.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Descripción
-        <textarea
-          rows={3}
-          value={shelter.description}
-          onChange={(event) => update('description', event.target.value)}
-        />
-      </label>
-      <label>
-        Dirección
-        <input
-          value={shelter.address}
-          onChange={(event) => update('address', event.target.value)}
-        />
-      </label>
-      <div className="two-columns">
-        <label>
-          Ciudad
-          <input value={shelter.city} onChange={(event) => update('city', event.target.value)} />
-        </label>
-        <label>
-          País
-          <input
-            value={shelter.country}
-            onChange={(event) => update('country', event.target.value)}
-          />
-        </label>
+    <div>
+      <div className="admin-header">
+        <div className="admin-header-title">
+          <span className="admin-header-icon">🏠</span>
+          <div>
+            <p className="eyebrow">Panel admin</p>
+            <h1>Mi refugio</h1>
+          </div>
+        </div>
       </div>
-      <div className="two-columns">
+
+      <form className="register-form" onSubmit={submit}>
         <label>
-          Teléfono
+          Nombre
           <input
-            value={shelter.phone ?? ''}
-            onChange={(event) => update('phone', event.target.value)}
+            value={shelter.name}
+            onChange={(event) => update('name', event.target.value)}
+            required
           />
         </label>
         <label>
-          WhatsApp
-          <input
-            value={shelter.whatsApp ?? ''}
-            onChange={(event) => update('whatsApp', event.target.value)}
-          />
-        </label>
-      </div>
-      <label>
-        Email de contacto
-        <input
-          value={shelter.email ?? ''}
-          onChange={(event) => update('email', event.target.value)}
-        />
-      </label>
-      <div className="two-columns">
-        <label>
-          Latitud (para "cerca de mí")
-          <input
-            type="number"
-            step="any"
-            value={shelter.latitude ?? ''}
-            onChange={(event) =>
-              update('latitude', event.target.value ? Number(event.target.value) : null)
-            }
+          Descripción
+          <textarea
+            rows={3}
+            value={shelter.description}
+            onChange={(event) => update('description', event.target.value)}
           />
         </label>
         <label>
-          Longitud
+          Dirección
           <input
-            type="number"
-            step="any"
-            value={shelter.longitude ?? ''}
-            onChange={(event) =>
-              update('longitude', event.target.value ? Number(event.target.value) : null)
-            }
+            value={shelter.address}
+            onChange={(event) => update('address', event.target.value)}
           />
         </label>
-      </div>
-      {error && (
-        <p className="feedback" role="status">
-          {error}
-        </p>
-      )}
-      {saved && <p className="body-copy">Guardado.</p>}
-      <button className="primary-button" type="submit" disabled={saving}>
-        {saving ? 'Guardando…' : 'Guardar refugio'}
-      </button>
-    </form>
+        <div className="two-columns">
+          <label>
+            Ciudad
+            <input value={shelter.city} onChange={(event) => update('city', event.target.value)} />
+          </label>
+          <label>
+            País
+            <input
+              value={shelter.country}
+              onChange={(event) => update('country', event.target.value)}
+            />
+          </label>
+        </div>
+        <div className="two-columns">
+          <label>
+            Teléfono
+            <input
+              value={shelter.phone ?? ''}
+              onChange={(event) => update('phone', event.target.value)}
+            />
+          </label>
+          <label>
+            WhatsApp
+            <input
+              value={shelter.whatsApp ?? ''}
+              onChange={(event) => update('whatsApp', event.target.value)}
+            />
+          </label>
+        </div>
+        <label>
+          Email de contacto
+          <input
+            value={shelter.email ?? ''}
+            onChange={(event) => update('email', event.target.value)}
+          />
+        </label>
+        <div className="two-columns">
+          <label>
+            Latitud (para "cerca de mí")
+            <input
+              type="number"
+              step="any"
+              value={shelter.latitude ?? ''}
+              onChange={(event) =>
+                update('latitude', event.target.value ? Number(event.target.value) : null)
+              }
+            />
+          </label>
+          <label>
+            Longitud
+            <input
+              type="number"
+              step="any"
+              value={shelter.longitude ?? ''}
+              onChange={(event) =>
+                update('longitude', event.target.value ? Number(event.target.value) : null)
+              }
+            />
+          </label>
+        </div>
+        {error && (
+          <p className="feedback" role="status">
+            {error}
+          </p>
+        )}
+        {saved && <p className="body-copy">Guardado.</p>}
+        <button className="primary-button" type="submit" disabled={saving}>
+          {saving ? 'Guardando…' : 'Guardar refugio'}
+        </button>
+      </form>
+    </div>
   )
 }

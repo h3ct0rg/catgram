@@ -97,15 +97,23 @@ export function InviteUserPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="section-title">Invitaciones</h2>
-        <button
-          className="primary-button"
-          type="button"
-          onClick={() => setShowForm((current) => !current)}
-        >
-          {showForm ? 'Cancelar' : 'Crear invitación'}
-        </button>
+      <div className="admin-header">
+        <div className="admin-header-title">
+          <span className="admin-header-icon">✉️</span>
+          <div>
+            <p className="eyebrow">Panel admin</p>
+            <h1>Invitaciones</h1>
+          </div>
+        </div>
+        <div className="admin-header-action">
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => setShowForm((current) => !current)}
+          >
+            {showForm ? 'Cancelar' : 'Crear invitación'}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -121,7 +129,11 @@ export function InviteUserPage() {
           </label>
           <label>
             Nombre completo
-            <input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+            <input
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              required
+            />
           </label>
           <label>
             Rol
@@ -234,7 +246,7 @@ export function InviteUserPage() {
           </div>
         ))}
         {!loading && invitations.length === 0 && (
-          <p className="body-copy">No hay invitaciones todavía.</p>
+          <p className="admin-empty">No hay invitaciones todavía.</p>
         )}
       </div>
     </div>

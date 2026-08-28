@@ -1,7 +1,8 @@
 import { FormEvent, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
-import { googleChallenge, login } from '../../services/apiClient'
+import { googleLogin, login } from '../../services/apiClient'
+import { GoogleSignInButton } from './GoogleSignInButton'
 
 type Props = { mode: 'login' | 'invite' }
 
@@ -28,6 +29,20 @@ export function AuthView({ mode }: Props) {
     }
   }
 
+  async function handleGoogleCredential(idToken: string) {
+    setLoading(true)
+    setMessage('')
+    try {
+      const result = await googleLogin(idToken, invitationToken)
+      session.login(result.accessToken)
+      navigate('/')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Ocurrió un error con Google.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const invitationToken = searchParams.get('invitationToken') ?? undefined
 
   return (
@@ -44,7 +59,7 @@ export function AuthView({ mode }: Props) {
             ? 'Inicia con Google para unirte a la comunidad autorizada.'
             : 'Los refugios construyen historias. Las familias encuentran un hogar.'}
         </p>
-        {mode === 'login' ? (
+        {mode === 'login' && (
           <form onSubmit={submit} className="auth-form">
             <label>
               Usuario
@@ -58,11 +73,13 @@ export function AuthView({ mode }: Props) {
               {loading ? 'Ingresando…' : 'Iniciar sesión'}
             </button>
           </form>
-        ) : (
-          <button className="primary-button" onClick={() => googleChallenge(invitationToken)}>
-            Continuar con Google
-          </button>
         )}
+        {mode === 'login' && (
+          <div className="divider">
+            <span>o</span>
+          </div>
+        )}
+        <GoogleSignInButton onCredential={handleGoogleCredential} />
         {message && (
           <p className="feedback" role="status">
             {message}

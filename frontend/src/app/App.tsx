@@ -16,6 +16,7 @@ import { AdoptionRequestsPage } from '../features/admin/AdoptionRequestsPage'
 import { CreatePostPage } from '../features/admin/CreatePostPage'
 import { InviteUserPage } from '../features/admin/InviteUserPage'
 import { MyShelterPage } from '../features/admin/MyShelterPage'
+import { PetsPage } from '../features/admin/PetsPage'
 import { SearchPage } from '../features/discovery/SearchPage'
 import { RequireRole } from './RequireRole'
 
@@ -64,6 +65,7 @@ export function App() {
           }
         />
         <Route path="/animals/new" element={<RegisterPetView />} />
+        <Route path="/animals/:animalId/edit" element={<RegisterPetView />} />
         <Route path="/animals/:animalId" element={<PetView />} />
         <Route path="/p/:postId" element={<PostDetailPage />} />
         <Route path="/stories/:storyId" element={<StoryViewer />} />
@@ -110,6 +112,14 @@ export function App() {
             element={
               <RequireRole roles={ADMINISTRADOR_ONLY}>
                 <MyShelterPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="pets"
+            element={
+              <RequireRole roles={ADMINISTRADOR_ONLY}>
+                <PetsPage />
               </RequireRole>
             }
           />

@@ -29,6 +29,16 @@ export function ReportsInboxPage() {
 
   return (
     <div>
+      <div className="admin-header">
+        <div className="admin-header-title">
+          <span className="admin-header-icon">🚩</span>
+          <div>
+            <p className="eyebrow">Panel admin</p>
+            <h1>Reportes</h1>
+          </div>
+        </div>
+      </div>
+
       <div className="admin-toolbar">
         <select
           value={statusFilter}
@@ -71,7 +81,7 @@ export function ReportsInboxPage() {
           </div>
         ))}
         {!loading && reports.length === 0 && (
-          <p className="body-copy">No hay reportes con este filtro.</p>
+          <p className="admin-empty">No hay reportes con este filtro.</p>
         )}
       </div>
     </div>

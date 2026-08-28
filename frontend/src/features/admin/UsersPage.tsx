@@ -38,6 +38,16 @@ export function UsersPage() {
 
   return (
     <div>
+      <div className="admin-header">
+        <div className="admin-header-title">
+          <span className="admin-header-icon">👥</span>
+          <div>
+            <p className="eyebrow">Panel admin</p>
+            <h1>Usuarios</h1>
+          </div>
+        </div>
+      </div>
+
       {loading && <p className="body-copy">Cargando…</p>}
       {error && (
         <p className="feedback" role="status">

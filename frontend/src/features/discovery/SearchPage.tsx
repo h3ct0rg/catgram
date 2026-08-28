@@ -5,6 +5,7 @@ import { TopBar } from '../../components/layout/TopBar'
 import { getAnimals, getNearbyAnimals } from '../../services/apiClient'
 import { Animal } from '../../types/domain'
 import { adoptionStatusLabel } from '../../utils/adoptionStatus'
+import { SEX_OPTIONS, SIZE_OPTIONS, SPECIES_OPTIONS } from '../../utils/animalOptions'
 
 export function SearchPage() {
   const navigate = useNavigate()
@@ -75,7 +76,7 @@ export function SearchPage() {
         <div className="feed-heading">
           <div>
             <p className="eyebrow">Encuentra un compañero</p>
-            <h1>Buscar animales</h1>
+            <h1>Buscar mascotas</h1>
           </div>
         </div>
         <div className="search-filters glass-card">
@@ -87,23 +88,29 @@ export function SearchPage() {
           <div className="two-columns">
             <select value={species} onChange={(event) => setSpecies(event.target.value)}>
               <option value="">Especie</option>
-              <option value="Dog">Perro</option>
-              <option value="Cat">Gato</option>
-              <option value="Other">Otro</option>
+              {SPECIES_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <select value={sex} onChange={(event) => setSex(event.target.value)}>
               <option value="">Sexo</option>
-              <option value="Female">Hembra</option>
-              <option value="Male">Macho</option>
-              <option value="Unknown">Desconocido</option>
+              {SEX_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="two-columns">
             <select value={size} onChange={(event) => setSize(event.target.value)}>
               <option value="">Tamaño</option>
-              <option value="Small">Pequeño</option>
-              <option value="Medium">Mediano</option>
-              <option value="Large">Grande</option>
+              {SIZE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <select
               value={adoptionStatus}
@@ -142,7 +149,7 @@ export function SearchPage() {
           </p>
         )}
         {!loading && searched && results.length === 0 && !error && (
-          <p className="body-copy">No encontramos animales con estos filtros.</p>
+          <p className="body-copy">No encontramos mascotas con estos filtros.</p>
         )}
 
         <div className="search-results">

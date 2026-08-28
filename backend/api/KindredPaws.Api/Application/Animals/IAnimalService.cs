@@ -14,4 +14,5 @@ public interface IAnimalService
     Task<AnimalMediaResponse> AddMediaAsync(Guid animalId, MediaUpload upload, Guid? actorShelterId, CancellationToken cancellationToken);
     Task<AnimalStatsResponse> GetStatsAsync(Guid animalId, Guid? actorShelterId, CancellationToken cancellationToken);
     Task<AnimalResponse> MarkAdoptedAsync(Guid animalId, Guid actorUserId, CancellationToken cancellationToken);
+    Task DeleteAsync(Guid animalId, Guid? actorShelterId, CancellationToken cancellationToken);
 }

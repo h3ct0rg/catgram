@@ -1,34 +1,87 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
+
+type NavItem = {
+  to: string
+  end?: boolean
+  icon: string
+  label: string
+  visibility: 'all' | 'super' | 'shelter'
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { to: '/admin', end: true, icon: '📊', label: 'Dashboard', visibility: 'all' },
+  { to: '/admin/reports', icon: '🚩', label: 'Reportes', visibility: 'all' },
+  { to: '/admin/adoptions', icon: '🐕', label: 'Solicitudes', visibility: 'all' },
+  { to: '/admin/pets', icon: '🐾', label: 'Mascotas', visibility: 'shelter' },
+  { to: '/admin/posts/new', icon: '📸', label: 'Publicar', visibility: 'all' },
+  { to: '/admin/users', icon: '👥', label: 'Usuarios', visibility: 'super' },
+  { to: '/admin/audit', icon: '🧾', label: 'Auditoría', visibility: 'super' },
+  { to: '/admin/invite', icon: '✉️', label: 'Invitar', visibility: 'super' },
+  { to: '/admin/shelter', icon: '🏠', label: 'Mi refugio', visibility: 'shelter' },
+]
 
 export function AdminLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const session = useSession()
   const isSuperAdmin = session.roles.includes('SuperAdministrador')
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  const items = NAV_ITEMS.filter((item) => {
+    if (item.visibility === 'super') return isSuperAdmin
+    if (item.visibility === 'shelter') return !isSuperAdmin
+    return true
+  })
 
   return (
     <div className="app-shell">
       <header className="topbar">
+        <button
+          className="hamburger"
+          aria-label="Abrir menú de administración"
+          onClick={() => setMenuOpen(true)}
+        >
+          ☰
+        </button>
         <button className="brand" onClick={() => navigate('/')}>
           <span className="paw">🐾</span>
           <span>Panel admin</span>
         </button>
+        <div className="topbar-actions">
+          <span className="badge badge-role">{isSuperAdmin ? 'SuperAdmin' : 'Administrador'}</span>
+          <button className="avatar" aria-label="Volver al muro" onClick={() => navigate('/')}>
+            👩🏻
+          </button>
+        </div>
       </header>
-      <main className="feed-page admin-page">
-        <nav className="admin-tabs">
-          <NavLink to="/admin" end>
-            Dashboard
-          </NavLink>
-          <NavLink to="/admin/reports">Reportes</NavLink>
-          <NavLink to="/admin/adoptions">Solicitudes</NavLink>
-          <NavLink to="/admin/posts/new">Publicar</NavLink>
-          {isSuperAdmin && <NavLink to="/admin/users">Usuarios</NavLink>}
-          {isSuperAdmin && <NavLink to="/admin/audit">Auditoría</NavLink>}
-          {isSuperAdmin && <NavLink to="/admin/invite">Invitar</NavLink>}
-          {!isSuperAdmin && <NavLink to="/admin/shelter">Mi refugio</NavLink>}
-        </nav>
-        <Outlet />
-      </main>
+
+      <div className="admin-layout">
+        {menuOpen && (
+          <button
+            className="admin-sidebar-overlay"
+            aria-label="Cerrar menú"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+        <aside className={`admin-sidebar ${menuOpen ? 'open' : ''}`}>
+          <nav className="admin-nav">
+            {items.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end}>
+                <span>{item.icon}</span> {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+        <main className="admin-content admin-page">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

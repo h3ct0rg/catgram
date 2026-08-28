@@ -30,7 +30,7 @@ public sealed class SocialService(
     public async Task<PostResponse> CreatePostAsync(CreatePostRequest r, Guid createdByUserId, Guid? actorShelterId, IReadOnlyCollection<MediaUpload> media, CancellationToken ct)
     {
         var effectiveShelterId = actorShelterId ?? r.ShelterId;
-        var animal = await repository.GetAnimalAsync(r.AnimalId, effectiveShelterId, ct) ?? throw new KeyNotFoundException("Animal no encontrado en el refugio.");
+        var animal = await repository.GetAnimalAsync(r.AnimalId, effectiveShelterId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada en el refugio.");
         var post = new Post { ShelterId = effectiveShelterId, AnimalId = r.AnimalId, CreatedByUserId = createdByUserId, Caption = r.Caption.Trim(), Location = r.Location, Hashtags = r.Hashtags, IsFeatured = r.IsFeatured, IsSuccessStory = r.IsSuccessStory };
         await AddPostMediaAsync(post, media, ct); await repository.AddPostAsync(post, ct); await repository.SaveAsync(ct);
         await NotifyFollowersOfNewPostAsync(animal, post, ct);
@@ -89,7 +89,7 @@ public sealed class SocialService(
     public async Task<StoryResponse> CreateStoryAsync(CreateStoryRequest r, Guid? actorShelterId, MediaUpload media, CancellationToken ct)
     {
         var effectiveShelterId = actorShelterId ?? r.ShelterId;
-        var valid = await repository.AnimalExistsAsync(r.AnimalId, effectiveShelterId, ct); if (!valid) throw new KeyNotFoundException("Animal no encontrado en el refugio.");
+        var valid = await repository.AnimalExistsAsync(r.AnimalId, effectiveShelterId, ct); if (!valid) throw new KeyNotFoundException("Mascota no encontrada en el refugio.");
         ValidateMedia(media);
         var key = $"stories/{Guid.NewGuid():N}-{Path.GetFileName(media.FileName)}"; await storage.PutAsync(key, media.Content, media.Length, media.ContentType, ct);
         var story = new Story { ShelterId = effectiveShelterId, AnimalId = r.AnimalId, Caption = r.Caption.Trim(), ObjectKey = key, ContentType = media.ContentType }; await repository.AddStoryAsync(story, ct); await repository.SaveAsync(ct);
@@ -162,8 +162,15 @@ public sealed class SocialService(
             throw new UnauthorizedAccessException("No puedes gestionar contenido de otro refugio.");
     }
 
-    private static void ValidateMedia(MediaUpload m) { if (m.Length <= 0 || m.Length > 50 * 1024 * 1024 || !new[] { "image/jpeg", "image/png", "image/webp", "video/mp4" }.Contains(m.ContentType)) throw new ArgumentException("Archivo no permitido o excede 50 MB."); }
-    private async Task<AnimalMediaResponse> ToMediaResponseAsync(PostMedia m, CancellationToken ct) => new(m.Id, await storage.GetUrlAsync(m.ObjectKey, ct), m.ThumbnailObjectKey is null ? null : await storage.GetUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
+    // "image/jpg" isn't a registered MIME type but some browsers/OS combinations report it anyway for
+    // .jpg files instead of the standard "image/jpeg" — accept both rather than silently rejecting them.
+    private static readonly string[] AllowedContentTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4"];
+    private static void ValidateMedia(MediaUpload m)
+    {
+        if (m.Length <= 0 || m.Length > 50 * 1024 * 1024) throw new ArgumentException("El archivo excede 50 MB.");
+        if (!AllowedContentTypes.Contains(m.ContentType, StringComparer.OrdinalIgnoreCase)) throw new ArgumentException($"Tipo de archivo no permitido: '{m.ContentType}'. Usa JPG, PNG, WEBP o MP4.");
+    }
+    private async Task<AnimalMediaResponse> ToMediaResponseAsync(PostMedia m, CancellationToken ct) => new(m.Id, await storage.GetUrlAsync(m.ObjectKey, m.ContentType, ct), m.ThumbnailObjectKey is null ? null : await storage.GetUrlAsync(m.ThumbnailObjectKey, "image/webp", ct), m.ContentType, m.IsPrimary);
 
     private async Task<PostResponse> ToResponseAsync(Post x, Animal? animal, Guid? currentUserId, CancellationToken ct, int? likeCount = null, int? commentCount = null, bool? likedByCurrentUser = null)
     {
@@ -178,5 +185,5 @@ public sealed class SocialService(
     }
 
     private async Task<StoryResponse> ToStoryResponseAsync(Story x, Animal? animal, CancellationToken ct) =>
-        new(x.Id, x.ShelterId, x.AnimalId, animal?.Name ?? "", x.Caption, await storage.GetUrlAsync(x.ObjectKey, ct), x.ContentType, x.CreatedAt, x.ExpiresAt, x.Views.Count);
+        new(x.Id, x.ShelterId, x.AnimalId, animal?.Name ?? "", x.Caption, await storage.GetUrlAsync(x.ObjectKey, x.ContentType, ct), x.ContentType, x.CreatedAt, x.ExpiresAt, x.Views.Count);
 }

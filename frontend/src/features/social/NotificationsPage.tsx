@@ -15,7 +15,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   Comment: 'Comentarios',
   Reply: 'Respuestas',
   AdoptionStatusChanged: 'Cambios de adopción',
-  NewPost: 'Nuevas publicaciones de animales que sigues',
+  NewPost: 'Nuevas publicaciones de mascotas que sigues',
 }
 
 export function NotificationsPage() {

@@ -6,7 +6,7 @@ type Props = { animalId: string; animalName: string; onClose: () => void }
 const QUESTIONS: Array<{ key: string; label: string }> = [
   { key: 'tipoVivienda', label: '¿Qué tipo de vivienda tienes?' },
   { key: 'tienePatio', label: '¿Tienes patio o espacio exterior?' },
-  { key: 'tieneOtrosAnimales', label: '¿Tienes otros animales en casa?' },
+  { key: 'tieneOtrosAnimales', label: '¿Tienes otras mascotas en casa?' },
   { key: 'tieneNinos', label: '¿Hay niños en casa?' },
   { key: 'experiencia', label: '¿Qué experiencia tienes con mascotas?' },
 ]

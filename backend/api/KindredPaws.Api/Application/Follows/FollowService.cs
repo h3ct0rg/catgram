@@ -7,7 +7,7 @@ public sealed class FollowService(FollowRepository follows, AnimalRepository ani
 {
     public async Task FollowAsync(Guid animalId, Guid userId, CancellationToken ct)
     {
-        _ = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        _ = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         if (await follows.ExistsAsync(animalId, userId, ct)) return;
         await follows.AddAsync(new Follow { AnimalId = animalId, UserId = userId }, ct);
         await follows.SaveAsync(ct);

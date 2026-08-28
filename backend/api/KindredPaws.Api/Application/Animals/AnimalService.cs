@@ -21,42 +21,61 @@ public sealed class AnimalService(
     SocialRepository posts,
     LikeRepository likes,
     CommentRepository comments,
+    AdoptionRequestRepository adoptionRequests,
     IMediaStorage mediaStorage,
     IThumbnailGenerator thumbnailGenerator,
     UserManager<ApplicationUser> userManager,
     INotificationService notifications,
     IEventPublisher eventPublisher,
-    IAuditService audit) : IAnimalService
+    IAuditService audit,
+    ILogger<AnimalService> logger) : IAnimalService
 {
+    // "image/jpg" isn't a registered MIME type but some browsers/OS combinations report it anyway for
+    // .jpg files instead of the standard "image/jpeg" — accept both rather than silently rejecting them.
+    private static readonly string[] AllowedContentTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4"];
     public async Task<ShelterResponse> CreateShelterAsync(CreateShelterRequest r, CancellationToken ct)
     {
         var shelter = new Shelter { Name = r.Name.Trim(), Description = r.Description.Trim(), Address = r.Address.Trim(), City = r.City.Trim(), Country = r.Country.Trim(), Phone = r.Phone, WhatsApp = r.WhatsApp, Email = r.Email, Latitude = r.Latitude, Longitude = r.Longitude };
-        await shelters.AddAsync(shelter, ct); await shelters.SaveAsync(ct); return ToResponse(shelter);
+        await shelters.AddAsync(shelter, ct);
+        await SaveSheltersAsync(ct, "crear refugio", shelter.Id);
+        logger.LogInformation("Shelter {ShelterId} ({ShelterName}) created.", shelter.Id, shelter.Name);
+        return ToResponse(shelter);
     }
+
     public async Task<IReadOnlyCollection<ShelterResponse>> ListSheltersAsync(string? name, CancellationToken ct) => (await shelters.ListAsync(name, ct)).Select(ToResponse).ToArray();
+
     public async Task<ShelterResponse> UpdateShelterAsync(Guid shelterId, UpdateShelterRequest r, CancellationToken ct)
     {
         var shelter = await shelters.GetAsync(shelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado.");
         shelter.Name = r.Name.Trim(); shelter.Description = r.Description.Trim(); shelter.Address = r.Address.Trim(); shelter.City = r.City.Trim(); shelter.Country = r.Country.Trim();
         shelter.Phone = r.Phone; shelter.WhatsApp = r.WhatsApp; shelter.Email = r.Email; shelter.Latitude = r.Latitude; shelter.Longitude = r.Longitude;
-        await shelters.SaveAsync(ct); return ToResponse(shelter);
+        await SaveSheltersAsync(ct, "actualizar refugio", shelter.Id);
+        logger.LogInformation("Shelter {ShelterId} updated.", shelter.Id);
+        return ToResponse(shelter);
     }
+
     public async Task<ShelterResponse> GetShelterAsync(Guid shelterId, CancellationToken ct) =>
         ToResponse(await shelters.GetAsync(shelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado."));
+
     public async Task<AnimalResponse> CreateAsync(CreateAnimalRequest r, Guid? actorShelterId, CancellationToken ct)
     {
         var effectiveShelterId = actorShelterId ?? r.ShelterId;
         var shelter = await shelters.GetAsync(effectiveShelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado.");
         var animal = new Animal { ShelterId = shelter.Id, Shelter = shelter, Name = r.Name.Trim(), Species = r.Species, Sex = r.Sex, Size = r.Size, AgeMonths = r.AgeMonths, Breed = r.Breed, Description = r.Description.Trim(), Location = r.Location };
-        await animals.AddAsync(animal, ct); await animals.SaveAsync(ct); return await ToResponseAsync(animal, ct);
+        await animals.AddAsync(animal, ct);
+        await SaveAnimalsAsync(ct, "crear animal", animal.Id);
+        logger.LogInformation("Animal {AnimalId} ({AnimalName}) created for shelter {ShelterId}.", animal.Id, animal.Name, animal.ShelterId);
+        return await ToResponseAsync(animal, ct);
     }
+
     public async Task<AnimalResponse> UpdateAsync(Guid id, UpdateAnimalRequest r, Guid actorUserId, Guid? actorShelterId, CancellationToken ct)
     {
-        var animal = await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var animal = await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         EnsureShelterAccess(animal, actorShelterId);
         var previousStatus = animal.AdoptionStatus;
         animal.Name = r.Name.Trim(); animal.Species = r.Species; animal.Sex = r.Sex; animal.Size = r.Size; animal.AgeMonths = r.AgeMonths; animal.Breed = r.Breed; animal.Description = r.Description.Trim(); animal.Location = r.Location; animal.AdoptionStatus = r.AdoptionStatus; animal.UpdatedAt = DateTimeOffset.UtcNow;
-        await animals.SaveAsync(ct);
+        await SaveAnimalsAsync(ct, "actualizar animal", animal.Id);
+        logger.LogInformation("Animal {AnimalId} updated.", animal.Id);
         if (previousStatus != animal.AdoptionStatus)
         {
             await audit.RecordAsync(actorUserId, AuditAction.AdoptionStatusChanged, "Animal", id, $"{previousStatus} -> {animal.AdoptionStatus}", ct);
@@ -64,18 +83,31 @@ public sealed class AnimalService(
         }
         return await ToResponseAsync(animal, ct);
     }
+
     private async Task NotifyAdoptionStatusChangedAsync(Animal animal, AdoptionStatus previousStatus, CancellationToken ct)
     {
-        var followerIds = await follows.ListFollowerIdsAsync(animal.Id, ct);
-        if (followerIds.Count == 0) return;
-        var followers = await userManager.Users.Where(u => followerIds.Contains(u.Id)).ToListAsync(ct);
-        foreach (var follower in followers)
+        // Best-effort: the adoption status change itself is already committed by the time this runs.
+        // A follower/notification failure here must never surface as a failed request for an update
+        // that actually succeeded.
+        try
         {
-            await notifications.CreateAsync(follower.Id, NotificationType.AdoptionStatusChanged, "Actualización de adopción", $"{animal.Name} cambió su estado a {animal.AdoptionStatus}.", $"/animals/{animal.Id}", animal.Id, ct);
-            await eventPublisher.PublishAsync(new AdoptionStatusChangedEvent(animal.Id, animal.Name, previousStatus.ToString(), animal.AdoptionStatus.ToString(), follower.Id, follower.Email ?? string.Empty, follower.FullName), ct);
+            var followerIds = await follows.ListFollowerIdsAsync(animal.Id, ct);
+            if (followerIds.Count == 0) return;
+            var followers = await userManager.Users.Where(u => followerIds.Contains(u.Id)).ToListAsync(ct);
+            foreach (var follower in followers)
+            {
+                await notifications.CreateAsync(follower.Id, NotificationType.AdoptionStatusChanged, "Actualización de adopción", $"{animal.Name} cambió su estado a {animal.AdoptionStatus}.", $"/animals/{animal.Id}", animal.Id, ct);
+                await eventPublisher.PublishAsync(new AdoptionStatusChangedEvent(animal.Id, animal.Name, previousStatus.ToString(), animal.AdoptionStatus.ToString(), follower.Id, follower.Email ?? string.Empty, follower.FullName), ct);
+            }
+            logger.LogInformation("Notified {FollowerCount} follower(s) of animal {AnimalId} status change {Previous} -> {Current}.", followers.Count, animal.Id, previousStatus, animal.AdoptionStatus);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify followers of animal {AnimalId} status change {Previous} -> {Current}; the status change itself was already saved.", animal.Id, previousStatus, animal.AdoptionStatus);
         }
     }
-    public async Task<AnimalResponse> GetAsync(Guid id, CancellationToken ct) => await ToResponseAsync(await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Animal no encontrado."), ct);
+
+    public async Task<AnimalResponse> GetAsync(Guid id, CancellationToken ct) => await ToResponseAsync(await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Mascota no encontrada."), ct);
     public async Task<IReadOnlyCollection<AnimalResponse>> ListAsync(AnimalSearchFilter filter, CancellationToken ct) => (await Task.WhenAll((await animals.ListAsync(filter, ct)).Select(x => ToResponseAsync(x, ct)))).ToArray();
 
     public async Task<IReadOnlyCollection<AnimalResponse>> ListNearbyAsync(double latitude, double longitude, double radiusKm, CancellationToken ct)
@@ -108,52 +140,122 @@ public sealed class AnimalService(
     private static void EnsureShelterAccess(Animal animal, Guid? actorShelterId)
     {
         if (actorShelterId.HasValue && animal.ShelterId != actorShelterId.Value)
-            throw new UnauthorizedAccessException("No puedes gestionar animales de otro refugio.");
+            throw new UnauthorizedAccessException("No puedes gestionar mascotas de otro refugio.");
     }
 
     public async Task<AnimalResponse> MarkAdoptedAsync(Guid animalId, Guid actorUserId, CancellationToken ct)
     {
-        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         var previousStatus = animal.AdoptionStatus;
         if (previousStatus != AdoptionStatus.Adopted)
         {
             animal.AdoptionStatus = AdoptionStatus.Adopted;
             animal.UpdatedAt = DateTimeOffset.UtcNow;
-            await animals.SaveAsync(ct);
+            await SaveAnimalsAsync(ct, "marcar animal como adoptado", animal.Id);
             await audit.RecordAsync(actorUserId, AuditAction.AdoptionStatusChanged, "Animal", animalId, $"{previousStatus} -> Adopted (solicitud de adopción completada)", ct);
             await NotifyAdoptionStatusChangedAsync(animal, previousStatus, ct);
+            logger.LogInformation("Animal {AnimalId} marked as adopted (was {Previous}).", animal.Id, previousStatus);
         }
         return await ToResponseAsync(animal, ct);
     }
+
+    public async Task DeleteAsync(Guid animalId, Guid? actorShelterId, CancellationToken ct)
+    {
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
+        EnsureShelterAccess(animal, actorShelterId);
+
+        // Post/AdoptionRequest.AnimalId are required FKs with no explicit OnDelete configured, so EF's
+        // convention default (Cascade) would silently wipe a pet's entire post/like/comment/adoption
+        // history on delete. Block it instead — an admin has to clear those first. Follows are low-stakes
+        // (just subscriptions) and are left to cascade away.
+        var (postCount, _, _, _) = await posts.GetAnimalPostStatsAsync(animalId, ct);
+        if (postCount > 0)
+        {
+            logger.LogWarning("Refused to delete animal {AnimalId}: it has {PostCount} post(s).", animalId, postCount);
+            throw new InvalidOperationException("No puedes eliminar una mascota con publicaciones. Elimina sus publicaciones primero.");
+        }
+        var existingAdoptionRequests = await adoptionRequests.ListAsync(null, animalId, null, ct);
+        if (existingAdoptionRequests.Count > 0)
+        {
+            logger.LogWarning("Refused to delete animal {AnimalId}: it has {RequestCount} adoption request(s).", animalId, existingAdoptionRequests.Count);
+            throw new InvalidOperationException("No puedes eliminar una mascota con solicitudes de adopción registradas.");
+        }
+
+        animals.Remove(animal);
+        await SaveAnimalsAsync(ct, "eliminar mascota", animal.Id);
+        logger.LogInformation("Animal {AnimalId} ({AnimalName}) deleted.", animal.Id, animal.Name);
+    }
+
     public async Task<AnimalMediaResponse> AddMediaAsync(Guid animalId, MediaUpload upload, Guid? actorShelterId, CancellationToken ct)
     {
-        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         EnsureShelterAccess(animal, actorShelterId);
-        if (upload.Length <= 0 || upload.Length > 20 * 1024 * 1024 || !new[] { "image/jpeg", "image/png", "image/webp", "video/mp4" }.Contains(upload.ContentType)) throw new ArgumentException("Archivo no permitido o excede 20 MB.");
+        var existingMedia = string.Join("; ", animal.Media.Select(m => $"{m.Id}(isPrimary={m.IsPrimary})"));
+        logger.LogInformation("Adding media to animal {AnimalId}: {ContentType}, {Length} bytes, isPrimary={IsPrimary}, existing media=[{ExistingMedia}].",
+            animal.Id, upload.ContentType, upload.Length, upload.IsPrimary, existingMedia);
+
+        if (upload.Length <= 0 || upload.Length > 50 * 1024 * 1024)
+        {
+            logger.LogWarning("Rejected media upload for animal {AnimalId}: size {Length} bytes.", animal.Id, upload.Length);
+            throw new ArgumentException("El archivo excede 50 MB.");
+        }
+        if (!AllowedContentTypes.Contains(upload.ContentType, StringComparer.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Rejected media upload for animal {AnimalId}: content type '{ContentType}' not allowed.", animal.Id, upload.ContentType);
+            throw new ArgumentException($"Tipo de archivo no permitido: '{upload.ContentType}'. Usa JPG, PNG, WEBP o MP4.");
+        }
+
         using var buffer = new MemoryStream();
         await upload.Content.CopyToAsync(buffer, ct);
         var key = $"animals/{animal.Id}/{Guid.NewGuid():N}-{Path.GetFileName(upload.FileName)}";
         buffer.Position = 0;
-        await mediaStorage.PutAsync(key, buffer, upload.Length, upload.ContentType, ct);
-        var thumbnailKey = await TryGenerateThumbnailAsync(buffer, upload.ContentType, $"animals/{animal.Id}", ct);
+
+        try
+        {
+            await mediaStorage.PutAsync(key, buffer, upload.Length, upload.ContentType, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to store media object {Key} for animal {AnimalId} in media storage.", key, animal.Id);
+            throw;
+        }
+
+        var thumbnailKey = await TryGenerateThumbnailAsync(buffer, upload.ContentType, $"animals/{animal.Id}", animal.Id, ct);
+
         if (upload.IsPrimary) foreach (var media in animal.Media) media.IsPrimary = false;
         var entity = new AnimalMedia { AnimalId = animal.Id, ObjectKey = key, ThumbnailObjectKey = thumbnailKey, ContentType = upload.ContentType, SizeBytes = upload.Length, IsPrimary = upload.IsPrimary || animal.Media.Count == 0 };
-        animal.Media.Add(entity); await animals.SaveAsync(ct); return await ToMediaResponseAsync(entity, ct);
+        await animals.AddMediaAsync(entity, ct);
+
+        await SaveAnimalsAsync(ct, "guardar media de animal", animal.Id, entity.Id);
+        logger.LogInformation("Media {MediaId} ({Key}) saved for animal {AnimalId}. Thumbnail: {ThumbnailKey}.", entity.Id, key, animal.Id, thumbnailKey ?? "(none)");
+        return await ToMediaResponseAsync(entity, ct);
     }
-    private async Task<string?> TryGenerateThumbnailAsync(MemoryStream buffer, string contentType, string keyPrefix, CancellationToken ct)
+
+    private async Task<string?> TryGenerateThumbnailAsync(MemoryStream buffer, string contentType, string keyPrefix, Guid animalId, CancellationToken ct)
     {
         if (!thumbnailGenerator.CanGenerate(contentType)) return null;
-        buffer.Position = 0;
-        var thumbnail = await thumbnailGenerator.GenerateAsync(buffer, ct);
-        if (thumbnail is null) return null;
-        var thumbnailKey = $"{keyPrefix}/{Guid.NewGuid():N}-thumb.webp";
-        await mediaStorage.PutAsync(thumbnailKey, thumbnail.Value.Content, thumbnail.Value.Length, thumbnail.Value.ContentType, ct);
-        await thumbnail.Value.Content.DisposeAsync();
-        return thumbnailKey;
+        try
+        {
+            buffer.Position = 0;
+            var thumbnail = await thumbnailGenerator.GenerateAsync(buffer, ct);
+            if (thumbnail is null) return null;
+            var thumbnailKey = $"{keyPrefix}/{Guid.NewGuid():N}-thumb.webp";
+            await mediaStorage.PutAsync(thumbnailKey, thumbnail.Value.Content, thumbnail.Value.Length, thumbnail.Value.ContentType, ct);
+            await thumbnail.Value.Content.DisposeAsync();
+            return thumbnailKey;
+        }
+        catch (Exception ex)
+        {
+            // Thumbnails are a nice-to-have — a decoding/storage failure here must never block the
+            // primary media upload itself.
+            logger.LogWarning(ex, "Could not generate a thumbnail for animal {AnimalId} ({ContentType}); continuing without one.", animalId, contentType);
+            return null;
+        }
     }
+
     public async Task<AnimalStatsResponse> GetStatsAsync(Guid animalId, Guid? actorShelterId, CancellationToken ct)
     {
-        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         EnsureShelterAccess(animal, actorShelterId);
         var (postCount, totalViews, totalShares, postIds) = await posts.GetAnimalPostStatsAsync(animalId, ct);
         var totalLikes = postIds.Count == 0 ? 0 : (await likes.CountManyAsync(postIds, ct)).Values.Sum();
@@ -162,7 +264,50 @@ public sealed class AnimalService(
         return new AnimalStatsResponse(animal.Id, animal.Name, animal.AdoptionStatus, postCount, totalLikes, totalComments, totalViews, totalShares, followerCount);
     }
 
+    /// <summary>
+    /// Wraps animals.SaveAsync with diagnostics for DbUpdateConcurrencyException/DbUpdateException —
+    /// both surface as an opaque "0 rows affected" message otherwise, with no indication of which
+    /// entity/table was actually involved.
+    /// </summary>
+    private async Task SaveAnimalsAsync(CancellationToken ct, string operation, Guid animalId, Guid? mediaId = null)
+    {
+        try
+        {
+            await animals.SaveAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            var conflicts = string.Join("; ", ex.Entries.Select(e => $"{e.Entity.GetType().Name}(id={e.Property("Id").CurrentValue}, state={e.State})"));
+            logger.LogError(ex, "Concurrency conflict while trying to {Operation} (animal {AnimalId}, media {MediaId}). Conflicting entries: {Conflicts}.", operation, animalId, mediaId, conflicts);
+            throw;
+        }
+        catch (DbUpdateException ex)
+        {
+            logger.LogError(ex, "Database error while trying to {Operation} (animal {AnimalId}, media {MediaId}). {InnerMessage}", operation, animalId, mediaId, ex.InnerException?.Message ?? ex.Message);
+            throw;
+        }
+    }
+
+    private async Task SaveSheltersAsync(CancellationToken ct, string operation, Guid shelterId)
+    {
+        try
+        {
+            await shelters.SaveAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            var conflicts = string.Join("; ", ex.Entries.Select(e => $"{e.Entity.GetType().Name}(state={e.State})"));
+            logger.LogError(ex, "Concurrency conflict while trying to {Operation} (shelter {ShelterId}). Conflicting entries: {Conflicts}.", operation, shelterId, conflicts);
+            throw;
+        }
+        catch (DbUpdateException ex)
+        {
+            logger.LogError(ex, "Database error while trying to {Operation} (shelter {ShelterId}). {InnerMessage}", operation, shelterId, ex.InnerException?.Message ?? ex.Message);
+            throw;
+        }
+    }
+
     private static ShelterResponse ToResponse(Shelter x) => new(x.Id, x.Name, x.Description, x.Address, x.City, x.Country, x.Phone, x.WhatsApp, x.Email, x.Latitude, x.Longitude, x.Animals.Count);
-    private async Task<AnimalMediaResponse> ToMediaResponseAsync(AnimalMedia m, CancellationToken ct) => new(m.Id, await mediaStorage.GetUrlAsync(m.ObjectKey, ct), m.ThumbnailObjectKey is null ? null : await mediaStorage.GetUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
+    private async Task<AnimalMediaResponse> ToMediaResponseAsync(AnimalMedia m, CancellationToken ct) => new(m.Id, await mediaStorage.GetUrlAsync(m.ObjectKey, m.ContentType, ct), m.ThumbnailObjectKey is null ? null : await mediaStorage.GetUrlAsync(m.ThumbnailObjectKey, "image/webp", ct), m.ContentType, m.IsPrimary);
     private async Task<AnimalResponse> ToResponseAsync(Animal x, CancellationToken ct) => new(x.Id, x.ShelterId, x.Shelter?.Name ?? "", x.Name, x.Species, x.Sex, x.Size, x.AgeMonths, x.Breed, x.Description, x.AdoptionStatus, x.Location, (await Task.WhenAll(x.Media.Select(m => ToMediaResponseAsync(m, ct)))).ToArray());
 }

@@ -44,6 +44,16 @@ export function AdoptionRequestsPage() {
 
   return (
     <div>
+      <div className="admin-header">
+        <div className="admin-header-title">
+          <span className="admin-header-icon">🐕</span>
+          <div>
+            <p className="eyebrow">Panel admin</p>
+            <h1>Solicitudes de adopción</h1>
+          </div>
+        </div>
+      </div>
+
       <div className="admin-toolbar">
         <select
           value={statusFilter}
@@ -101,7 +111,7 @@ export function AdoptionRequestsPage() {
           </div>
         ))}
         {!loading && requests.length === 0 && (
-          <p className="body-copy">No hay solicitudes con este filtro.</p>
+          <p className="admin-empty">No hay solicitudes con este filtro.</p>
         )}
       </div>
     </div>

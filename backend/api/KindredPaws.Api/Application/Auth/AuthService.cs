@@ -2,10 +2,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Google.Apis.Auth;
 using KindredPaws.Api.Domain.Identity;
 using KindredPaws.Api.Domain.Shelters;
 using KindredPaws.Api.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -16,7 +16,8 @@ public sealed class AuthService(
     UserManager<ApplicationUser> userManager,
     IInvitationRepository invitations,
     ShelterRepository shelters,
-    IOptions<JwtOptions> jwtOptions) : IAuthService
+    IOptions<JwtOptions> jwtOptions,
+    IOptions<GoogleAuthOptions> googleOptions) : IAuthService
 {
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
@@ -77,10 +78,31 @@ public sealed class AuthService(
         return await CreateTokenAsync(user);
     }
 
-    public Task<string> GetGoogleChallengeUrlAsync(string returnUrl, CancellationToken cancellationToken)
+    public async Task<AuthResponse> GoogleLoginAsync(string idToken, string? invitationToken, CancellationToken cancellationToken)
     {
-        var encoded = Uri.EscapeDataString(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
-        return Task.FromResult($"/api/v1/auth/google/challenge?returnUrl={encoded}");
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = [googleOptions.Value.ClientId]
+            });
+        }
+        catch (InvalidJwtException)
+        {
+            throw new UnauthorizedAccessException("Token de Google inválido.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(invitationToken))
+            return await AcceptInvitationAsync(new AcceptInvitationRequest(invitationToken, payload.Subject, payload.Email), cancellationToken);
+
+        var user = await userManager.FindByLoginAsync("Google", payload.Subject)
+            ?? throw new UnauthorizedAccessException("Esta cuenta de Google no está registrada. Solicita una invitación.");
+        if (!user.IsActive) throw new UnauthorizedAccessException("Credenciales inválidas.");
+
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        await userManager.UpdateAsync(user);
+        return await CreateTokenAsync(user);
     }
 
     private async Task<AuthResponse> CreateTokenAsync(ApplicationUser user)
@@ -109,4 +131,9 @@ public sealed class JwtOptions
     public string Key { get; set; } = "development-only-change-this-key-32-chars";
     public string Issuer { get; set; } = "kindred-paws-api";
     public int ExpirationMinutes { get; set; } = 60;
+}
+
+public sealed class GoogleAuthOptions
+{
+    public string ClientId { get; set; } = string.Empty;
 }

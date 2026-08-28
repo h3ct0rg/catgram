@@ -43,6 +43,14 @@ public sealed class AnimalsController(IAnimalService animalService) : Controller
     public Task<AnimalResponse> Update(Guid id, UpdateAnimalRequest request, CancellationToken cancellationToken) =>
         animalService.UpdateAsync(id, request, ActorUserId, ActorShelterId, cancellationToken);
 
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await animalService.DeleteAsync(id, ActorShelterId, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}/stats")]
     [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
     public Task<AnimalStatsResponse> GetStats(Guid id, CancellationToken cancellationToken) => animalService.GetStatsAsync(id, ActorShelterId, cancellationToken);

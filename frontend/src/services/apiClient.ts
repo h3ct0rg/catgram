@@ -70,9 +70,11 @@ export async function login(userName: string, password: string): Promise<AuthRes
   })
 }
 
-export function googleChallenge(invitationToken?: string) {
-  const query = invitationToken ? `?invitationToken=${encodeURIComponent(invitationToken)}` : ''
-  window.location.assign(`${apiBaseUrl}/api/v1/auth/google/challenge${query}`)
+export function googleLogin(idToken: string, invitationToken?: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/v1/auth/google-login', {
+    method: 'POST',
+    body: JSON.stringify({ idToken, invitationToken }),
+  })
 }
 
 // --- Feed ---
@@ -114,6 +116,59 @@ export async function viewStory(storyId: string, anonymousKey?: string): Promise
 
 export function getAnimal(animalId: string): Promise<Animal> {
   return request<Animal>(`/api/v1/animals/${animalId}`)
+}
+
+export type CreateAnimalInput = {
+  shelterId: string
+  name: string
+  species: string
+  sex: string
+  size: string
+  ageMonths?: number
+  breed?: string
+  description: string
+  location?: string
+}
+
+export function createAnimal(input: CreateAnimalInput): Promise<Animal> {
+  return request<Animal>('/api/v1/animals', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function addAnimalMedia(
+  animalId: string,
+  file: File,
+  isPrimary: boolean,
+): Promise<void> {
+  const form = new FormData()
+  form.set('file', file)
+  form.set('isPrimary', String(isPrimary))
+  await request<void>(`/api/v1/animals/${animalId}/media`, { method: 'POST', body: form })
+}
+
+export type UpdateAnimalInput = {
+  name: string
+  species: string
+  sex: string
+  size: string
+  ageMonths?: number
+  breed?: string
+  description: string
+  location?: string
+  adoptionStatus: string
+}
+
+export function updateAnimal(animalId: string, input: UpdateAnimalInput): Promise<Animal> {
+  return request<Animal>(`/api/v1/animals/${animalId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteAnimal(animalId: string): Promise<void> {
+  await request<void>(`/api/v1/animals/${animalId}`, { method: 'DELETE' })
 }
 
 // --- Likes ---

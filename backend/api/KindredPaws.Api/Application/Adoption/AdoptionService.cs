@@ -26,7 +26,7 @@ public sealed class AdoptionService(
 {
     public async Task<AdoptionRequestResponse> CreateAsync(Guid animalId, Guid applicantUserId, CreateAdoptionRequestRequest r, CancellationToken ct)
     {
-        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         var request = new AdoptionRequest { AnimalId = animalId, ApplicantUserId = applicantUserId, AnswersJson = JsonSerializer.Serialize(r.Answers) };
         await requests.AddAsync(request, ct);
         await requests.SaveAsync(ct);
@@ -43,7 +43,7 @@ public sealed class AdoptionService(
     public async Task<AdoptionRequestResponse> UpdateStatusAsync(Guid id, AdoptionRequestStatus status, string? reviewNotes, Guid actorUserId, Guid? actorShelterId, CancellationToken ct)
     {
         var request = await requests.GetAsync(id, ct) ?? throw new KeyNotFoundException("Solicitud no encontrada.");
-        var animal = await animals.GetAsync(request.AnimalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var animal = await animals.GetAsync(request.AnimalId, ct) ?? throw new KeyNotFoundException("Mascota no encontrada.");
         if (actorShelterId.HasValue && animal.ShelterId != actorShelterId.Value)
             throw new UnauthorizedAccessException("No puedes revisar solicitudes de otro refugio.");
 
