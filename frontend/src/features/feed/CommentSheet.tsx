@@ -1,8 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
-import { deleteComment, getComments, postComment } from '../../services/apiClient'
+import {
+  deleteComment,
+  getComments,
+  likeComment,
+  postComment,
+  unlikeComment,
+} from '../../services/apiClient'
 import { Comment } from '../../types/social'
+import { formatRelativeTime } from '../../utils/formatRelativeTime'
+import { getInitials, stringToColor } from '../../utils/avatarColor'
 
 type Props = {
   postId: string
@@ -70,74 +78,136 @@ export function CommentSheet({ postId, onClose, onCommentCountChange }: Props) {
     }
   }
 
-  return (
-    <div className="sheet-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="sheet comment-sheet" onClick={(event) => event.stopPropagation()}>
-        <div className="sheet-handle" />
-        <h2>Comentarios</h2>
-        <div className="comment-list">
-          {loading && <p className="body-copy">Cargando comentarios…</p>}
-          {!loading && topLevel.length === 0 && (
-            <p className="body-copy">Sé el primero en comentar 🐾</p>
-          )}
-          {topLevel.map((comment) => (
-            <div className="comment" key={comment.id}>
-              <p>{comment.body}</p>
-              <div className="comment-actions">
-                {session.isAuthenticated && (
-                  <button onClick={() => setReplyTo(comment)}>Responder</button>
-                )}
-                {comment.isMine && <button onClick={() => remove(comment)}>Eliminar</button>}
-              </div>
-              {repliesOf(comment.id).map((reply) => (
-                <div className="comment reply" key={reply.id}>
-                  <p>{reply.body}</p>
-                  {reply.isMine && (
-                    <div className="comment-actions">
-                      <button onClick={() => remove(reply)}>Eliminar</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-        {error && (
-          <p className="feedback" role="status">
-            {error}
-          </p>
-        )}
-        {session.isAuthenticated ? (
-          <form className="comment-form" onSubmit={submit}>
-            {replyTo && (
-              <small className="replying-to">
-                Respondiendo a un comentario
-                <button type="button" onClick={() => setReplyTo(null)}>
-                  ✕
-                </button>
-              </small>
-            )}
-            <input
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder="Escribe un comentario…"
-            />
-            <button className="primary-button" disabled={submitting || !body.trim()}>
-              Enviar
+  async function toggleCommentLike(comment: Comment) {
+    if (!session.isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    const next = !comment.likedByCurrentUser
+    setComments((current) =>
+      current.map((item) =>
+        item.id === comment.id
+          ? { ...item, likedByCurrentUser: next, likeCount: item.likeCount + (next ? 1 : -1) }
+          : item,
+      ),
+    )
+    try {
+      if (next) await likeComment(comment.id)
+      else await unlikeComment(comment.id)
+    } catch {
+      setComments((current) =>
+        current.map((item) =>
+          item.id === comment.id
+            ? { ...item, likedByCurrentUser: !next, likeCount: item.likeCount + (next ? -1 : 1) }
+            : item,
+        ),
+      )
+    }
+  }
+
+  function CommentRow({ comment, isReply }: { comment: Comment; isReply?: boolean }) {
+    return (
+      <div className={`comment-row ${isReply ? 'reply' : ''}`}>
+        <span className="comment-avatar" style={{ background: stringToColor(comment.authorId) }}>
+          {getInitials(comment.authorName)}
+        </span>
+        <div className="comment-body-col">
+          <div className="comment-bubble">
+            <strong>{comment.authorName}</strong>
+            <p>{comment.body}</p>
+          </div>
+          <div className="comment-meta-row">
+            <button
+              className={`comment-like ${comment.likedByCurrentUser ? 'liked' : ''}`}
+              onClick={() => toggleCommentLike(comment)}
+            >
+              Me gusta{comment.likeCount > 0 && ` · ${comment.likeCount}`}
             </button>
-          </form>
-        ) : (
-          <p className="body-copy">
-            <button className="link-button" onClick={() => navigate('/login')}>
-              Inicia sesión
-            </button>{' '}
-            para comentar.
-          </p>
-        )}
-        <button className="secondary-button" onClick={onClose}>
-          Cerrar
+            {session.isAuthenticated && !isReply && (
+              <button className="comment-reply-trigger" onClick={() => setReplyTo(comment)}>
+                Responder
+              </button>
+            )}
+            <span className="comment-time">{formatRelativeTime(comment.createdAt)}</span>
+            {comment.isMine && (
+              <button className="comment-delete-trigger" onClick={() => remove(comment)}>
+                Eliminar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <section className="inline-comments" onClick={(event) => event.stopPropagation()}>
+      <div className="inline-comments-header">
+        <h3>Comentarios</h3>
+        <button className="icon-button" aria-label="Ocultar comentarios" onClick={onClose}>
+          <span className="material-symbols-outlined">expand_less</span>
         </button>
       </div>
-    </div>
+
+      <div className="comment-list">
+        {loading && <p className="body-copy">Cargando comentarios…</p>}
+        {!loading && topLevel.length === 0 && (
+          <p className="body-copy comment-empty">Sé el primero en comentar 🐾</p>
+        )}
+        {topLevel.map((comment) => (
+          <div className="comment-thread" key={comment.id}>
+            <CommentRow comment={comment} />
+            {repliesOf(comment.id).map((reply) => (
+              <CommentRow comment={reply} isReply key={reply.id} />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <p className="feedback" role="status">
+          {error}
+        </p>
+      )}
+
+      {session.isAuthenticated ? (
+        <form className="comment-form" onSubmit={submit}>
+          {replyTo && (
+            <small className="replying-to">
+              Respondiendo a un comentario
+              <button type="button" onClick={() => setReplyTo(null)}>
+                ✕
+              </button>
+            </small>
+          )}
+          <span
+            className="comment-avatar comment-avatar-self"
+            style={{ background: stringToColor(session.userId ?? session.userName ?? '') }}
+          >
+            {getInitials(session.userName ?? '?')}
+          </span>
+          <input
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Escribe un comentario…"
+          />
+          <button
+            type="submit"
+            className={`comment-send ${body.trim() ? 'ready' : ''}`}
+            aria-label="Enviar comentario"
+            disabled={submitting || !body.trim()}
+          >
+            <span className="material-symbols-outlined">send</span>
+          </button>
+        </form>
+      ) : (
+        <p className="body-copy">
+          <button className="link-button" onClick={() => navigate('/login')}>
+            Inicia sesión
+          </button>{' '}
+          para comentar.
+        </p>
+      )}
+    </section>
   )
 }

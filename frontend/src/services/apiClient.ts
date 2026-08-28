@@ -23,6 +23,8 @@ import {
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5080'
 
 const TOKEN_KEY = 'kindred_paws_access_token'
+const REFRESH_TOKEN_KEY = 'kindred_paws_refresh_token'
+export const TOKEN_REFRESHED_EVENT = 'kindred-paws:token-refreshed'
 
 export function getAccessToken(): string | null {
   return sessionStorage.getItem(TOKEN_KEY)
@@ -33,7 +35,56 @@ export function setAccessToken(token: string | null) {
   else sessionStorage.removeItem(TOKEN_KEY)
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export function getRefreshToken(): string | null {
+  return sessionStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export function setRefreshToken(token: string | null) {
+  if (token) sessionStorage.setItem(REFRESH_TOKEN_KEY, token)
+  else sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
+function storeAuthResponse(auth: AuthResponse) {
+  setAccessToken(auth.accessToken)
+  setRefreshToken(auth.refreshToken)
+}
+
+// Concurrent 401s (or the proactive timer firing alongside one) must not each rotate the refresh
+// token independently — only the first caller performs the network call, everyone else awaits it.
+let refreshInFlight: Promise<AuthResponse> | null = null
+
+async function doRefresh(): Promise<AuthResponse> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) throw new Error('No hay refresh token disponible.')
+
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  if (!response.ok) throw new Error('No se pudo renovar la sesión.')
+
+  const auth = (await response.json()) as AuthResponse
+  storeAuthResponse(auth)
+  window.dispatchEvent(new CustomEvent<string>(TOKEN_REFRESHED_EVENT, { detail: auth.accessToken }))
+  return auth
+}
+
+export function ensureFreshToken(): Promise<AuthResponse> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefresh().finally(() => {
+      refreshInFlight = null
+    })
+  }
+  return refreshInFlight
+}
+
+function clearSession() {
+  setAccessToken(null)
+  setRefreshToken(null)
+}
+
+async function request<T>(path: string, options: RequestInit = {}, isRetry = false): Promise<T> {
   const token = getAccessToken()
   const headers = new Headers(options.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -46,7 +97,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers })
 
   if (response.status === 401) {
-    setAccessToken(null)
+    // Try one silent refresh-and-retry before giving up — only if this isn't already a retry and
+    // there's a refresh token to try with (a plain unauthenticated request has none).
+    if (!isRetry && getRefreshToken()) {
+      try {
+        await ensureFreshToken()
+        return await request<T>(path, options, true)
+      } catch {
+        // fall through to hard logout below
+      }
+    }
+    clearSession()
     if (window.location.pathname !== '/expired') window.location.assign('/expired')
     throw new Error('Tu sesión terminó.')
   }
@@ -63,7 +124,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // --- Auth ---
 
-export async function login(userName: string, password: string): Promise<AuthResponse> {
+export function login(userName: string, password: string): Promise<AuthResponse> {
   return request<AuthResponse>('/api/v1/auth/login', {
     method: 'POST',
     body: JSON.stringify({ userName, password }),
@@ -75,6 +136,21 @@ export function googleLogin(idToken: string, invitationToken?: string): Promise<
     method: 'POST',
     body: JSON.stringify({ idToken, invitationToken }),
   })
+}
+
+export async function logoutRequest(): Promise<void> {
+  const refreshToken = getRefreshToken()
+  clearSession()
+  if (!refreshToken) return
+  try {
+    await fetch(`${apiBaseUrl}/api/v1/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+  } catch {
+    // best-effort: the client is already logged out locally regardless of network outcome
+  }
 }
 
 // --- Feed ---
@@ -204,6 +280,14 @@ export function postComment(
 
 export async function deleteComment(commentId: string): Promise<void> {
   await request<void>(`/api/v1/comments/${commentId}`, { method: 'DELETE' })
+}
+
+export async function likeComment(commentId: string): Promise<void> {
+  await request<void>(`/api/v1/comments/${commentId}/likes`, { method: 'PUT' })
+}
+
+export async function unlikeComment(commentId: string): Promise<void> {
+  await request<void>(`/api/v1/comments/${commentId}/likes`, { method: 'DELETE' })
 }
 
 // --- Follow ---

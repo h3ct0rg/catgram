@@ -8,10 +8,11 @@ using KindredPaws.Api.Domain.Social;
 using KindredPaws.Api.Infrastructure.Persistence;
 using KindredPaws.Contracts;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace KindredPaws.Api.Application.Social;
 
-public sealed class CommentService(CommentRepository comments, SocialRepository posts, UserManager<ApplicationUser> userManager, INotificationService notifications, IEventPublisher eventPublisher, IAuditService audit) : ICommentService
+public sealed class CommentService(CommentRepository comments, CommentLikeRepository commentLikes, SocialRepository posts, UserManager<ApplicationUser> userManager, INotificationService notifications, IEventPublisher eventPublisher, IAuditService audit) : ICommentService
 {
     public async Task<CommentResponse> CreateAsync(Guid postId, Guid authorId, CreateCommentRequest r, CancellationToken ct)
     {
@@ -46,11 +47,38 @@ public sealed class CommentService(CommentRepository comments, SocialRepository 
                 await eventPublisher.PublishAsync(new CommentCreatedEvent(comment.Id, postId, ownerId, owner.Email ?? string.Empty, owner.FullName, authorId, Excerpt(comment.Body)), ct);
         }
 
-        return ToResponse(comment, authorId);
+        var author = await userManager.FindByIdAsync(authorId.ToString());
+        return ToResponse(comment, author?.FullName ?? "Usuario", authorId, 0, false);
     }
 
-    public async Task<IReadOnlyCollection<CommentResponse>> ListAsync(Guid postId, Guid? currentUserId, CancellationToken ct) =>
-        (await comments.ListByPostAsync(postId, ct)).Select(x => ToResponse(x, currentUserId)).ToArray();
+    public async Task<IReadOnlyCollection<CommentResponse>> ListAsync(Guid postId, Guid? currentUserId, CancellationToken ct)
+    {
+        var items = await comments.ListByPostAsync(postId, ct);
+        var ids = items.Select(x => x.Id).ToArray();
+        var authorIds = items.Select(x => x.AuthorId).Distinct().ToArray();
+        var counts = await commentLikes.CountManyAsync(ids, ct);
+        var liked = currentUserId.HasValue
+            ? await commentLikes.ListLikedCommentIdsAsync(currentUserId.Value, ids, ct)
+            : [];
+        var names = await userManager.Users.Where(u => authorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName, ct);
+        return items.Select(x => ToResponse(x, names.GetValueOrDefault(x.AuthorId, "Usuario"), currentUserId, counts.GetValueOrDefault(x.Id), liked.Contains(x.Id))).ToArray();
+    }
+
+    public async Task LikeAsync(Guid commentId, Guid userId, CancellationToken ct)
+    {
+        _ = await comments.GetAsync(commentId, ct) ?? throw new KeyNotFoundException("Comentario no encontrado.");
+        if (await commentLikes.ExistsAsync(commentId, userId, ct)) return;
+        await commentLikes.AddAsync(new CommentLike { CommentId = commentId, UserId = userId }, ct);
+        await commentLikes.SaveAsync(ct);
+    }
+
+    public async Task UnlikeAsync(Guid commentId, Guid userId, CancellationToken ct)
+    {
+        var like = await commentLikes.FindAsync(commentId, userId, ct);
+        if (like is null) return;
+        commentLikes.Remove(like);
+        await commentLikes.SaveAsync(ct);
+    }
 
     public async Task DeleteOwnAsync(Guid commentId, Guid userId, CancellationToken ct)
     {
@@ -70,5 +98,6 @@ public sealed class CommentService(CommentRepository comments, SocialRepository 
     }
 
     private static string Excerpt(string body) => body.Length <= 140 ? body : body[..140];
-    private static CommentResponse ToResponse(Comment x, Guid? currentUserId) => new(x.Id, x.PostId, x.AuthorId, x.ParentCommentId, x.Body, x.CreatedAt, currentUserId.HasValue && x.AuthorId == currentUserId.Value);
+    private static CommentResponse ToResponse(Comment x, string authorName, Guid? currentUserId, int likeCount, bool likedByCurrentUser) =>
+        new(x.Id, x.PostId, x.AuthorId, authorName, x.ParentCommentId, x.Body, x.CreatedAt, currentUserId.HasValue && x.AuthorId == currentUserId.Value, likeCount, likedByCurrentUser);
 }

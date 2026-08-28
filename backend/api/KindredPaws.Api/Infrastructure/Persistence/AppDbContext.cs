@@ -17,6 +17,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Invitation> Invitations => Set<Invitation>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Shelter> Shelters => Set<Shelter>();
     public DbSet<Animal> Animals => Set<Animal>();
     public DbSet<AnimalMedia> AnimalMedia => Set<AnimalMedia>();
@@ -26,6 +27,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<StoryView> StoryViews => Set<StoryView>();
     public DbSet<Like> Likes => Set<Like>();
     public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<CommentLike> CommentLikes => Set<CommentLike>();
     public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
@@ -45,6 +47,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<Invitation>().HasIndex(x => new { x.Email, x.UsedAt });
         builder.Entity<Invitation>().Property(x => x.Email).HasMaxLength(320).IsRequired();
         builder.Entity<Invitation>().Property(x => x.Role).HasMaxLength(80).IsRequired();
+        builder.Entity<RefreshToken>().Property(x => x.TokenHash).HasMaxLength(200).IsRequired();
+        builder.Entity<RefreshToken>().HasIndex(x => x.TokenHash).IsUnique();
+        builder.Entity<RefreshToken>().HasIndex(x => x.UserId);
+        builder.Entity<RefreshToken>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<Shelter>().Property(x => x.Name).HasMaxLength(180).IsRequired();
         builder.Entity<Shelter>().HasIndex(x => x.Name);
         builder.Entity<Animal>().Property(x => x.Name).HasMaxLength(120).IsRequired();
@@ -69,6 +75,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<Comment>().HasIndex(x => x.ParentCommentId);
         builder.Entity<Comment>().HasOne(x => x.Post).WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<Comment>().HasOne(x => x.ParentComment).WithMany().HasForeignKey(x => x.ParentCommentId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<CommentLike>().HasIndex(x => new { x.CommentId, x.UserId }).IsUnique();
+        builder.Entity<CommentLike>().HasOne(x => x.Comment).WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<Follow>().HasIndex(x => new { x.UserId, x.AnimalId }).IsUnique();
 

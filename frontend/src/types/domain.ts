@@ -77,6 +77,8 @@ export type Paginated<T> = {
 export type AuthResponse = {
   accessToken: string
   expiresAt: string
+  refreshToken: string
+  refreshTokenExpiresAt: string
   userName: string
   roles: string[]
   mustChangePassword: boolean

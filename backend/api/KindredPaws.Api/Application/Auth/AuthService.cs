@@ -16,6 +16,7 @@ public sealed class AuthService(
     UserManager<ApplicationUser> userManager,
     IInvitationRepository invitations,
     ShelterRepository shelters,
+    RefreshTokenRepository refreshTokens,
     IOptions<JwtOptions> jwtOptions,
     IOptions<GoogleAuthOptions> googleOptions) : IAuthService
 {
@@ -28,7 +29,7 @@ public sealed class AuthService(
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
         await userManager.UpdateAsync(user);
-        return await CreateTokenAsync(user);
+        return await CreateTokenAsync(user, cancellationToken);
     }
 
     public async Task<AuthResponse> AcceptInvitationAsync(AcceptInvitationRequest request, CancellationToken cancellationToken)
@@ -75,7 +76,7 @@ public sealed class AuthService(
         invitation.UsedAt = DateTimeOffset.UtcNow;
         invitation.UsedByUserId = user.Id;
         await invitations.SaveChangesAsync(cancellationToken);
-        return await CreateTokenAsync(user);
+        return await CreateTokenAsync(user, cancellationToken);
     }
 
     public async Task<AuthResponse> GoogleLoginAsync(string idToken, string? invitationToken, CancellationToken cancellationToken)
@@ -123,10 +124,33 @@ public sealed class AuthService(
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
         await userManager.UpdateAsync(user);
-        return await CreateTokenAsync(user);
+        return await CreateTokenAsync(user, cancellationToken);
     }
 
-    private async Task<AuthResponse> CreateTokenAsync(ApplicationUser user)
+    public async Task<AuthResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
+    {
+        var existing = await refreshTokens.FindActiveByTokenHashAsync(Hash(refreshToken), cancellationToken)
+            ?? throw new UnauthorizedAccessException("Refresh token inválido o expirado.");
+        var user = await userManager.FindByIdAsync(existing.UserId.ToString())
+            ?? throw new UnauthorizedAccessException("Refresh token inválido o expirado.");
+        if (!user.IsActive) throw new UnauthorizedAccessException("Credenciales inválidas.");
+
+        // Rotate: the old refresh token is single-use — revoking it here means a stolen/replayed
+        // token can't be reused once the legitimate client has rotated past it. CreateTokenAsync's own
+        // save persists this revocation together with the new refresh token row in one round trip.
+        existing.RevokedAt = DateTimeOffset.UtcNow;
+        return await CreateTokenAsync(user, cancellationToken);
+    }
+
+    public async Task LogoutAsync(string refreshToken, CancellationToken cancellationToken)
+    {
+        var existing = await refreshTokens.FindByTokenHashAsync(Hash(refreshToken), cancellationToken);
+        if (existing is null || existing.RevokedAt is not null) return;
+        existing.RevokedAt = DateTimeOffset.UtcNow;
+        await refreshTokens.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<AuthResponse> CreateTokenAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         var roles = await userManager.GetRolesAsync(user);
         var expires = DateTimeOffset.UtcNow.AddMinutes(jwtOptions.Value.ExpirationMinutes);
@@ -141,7 +165,13 @@ public sealed class AuthService(
         if (user.ShelterId.HasValue) claims.Add(new Claim("shelter_id", user.ShelterId.Value.ToString()));
         var credentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Value.Key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(issuer: jwtOptions.Value.Issuer, claims: claims, expires: expires.UtcDateTime, signingCredentials: credentials);
-        return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, user.UserName!, [.. roles], user.ShelterId, user.MustChangePassword);
+
+        var rawRefreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var refreshTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(jwtOptions.Value.RefreshTokenExpirationMinutes);
+        await refreshTokens.AddAsync(new RefreshToken { UserId = user.Id, TokenHash = Hash(rawRefreshToken), ExpiresAt = refreshTokenExpiresAt }, cancellationToken);
+        await refreshTokens.SaveChangesAsync(cancellationToken);
+
+        return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, rawRefreshToken, refreshTokenExpiresAt, user.UserName!, [.. roles], user.ShelterId, user.MustChangePassword);
     }
 
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
@@ -152,6 +182,7 @@ public sealed class JwtOptions
     public string Key { get; set; } = "development-only-change-this-key-32-chars";
     public string Issuer { get; set; } = "kindred-paws-api";
     public int ExpirationMinutes { get; set; } = 60;
+    public int RefreshTokenExpirationMinutes { get; set; } = 60;
 }
 
 public sealed class GoogleAuthOptions

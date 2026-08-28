@@ -20,7 +20,7 @@ export function AuthView({ mode }: Props) {
     const form = new FormData(event.currentTarget)
     try {
       const result = await login(String(form.get('userName')), String(form.get('password')))
-      session.login(result.accessToken)
+      session.login(result.accessToken, result.refreshToken)
       navigate('/')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Ocurrió un error.')
@@ -34,7 +34,7 @@ export function AuthView({ mode }: Props) {
     setMessage('')
     try {
       const result = await googleLogin(idToken, invitationToken)
-      session.login(result.accessToken)
+      session.login(result.accessToken, result.refreshToken)
       navigate('/')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Ocurrió un error con Google.')

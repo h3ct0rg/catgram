@@ -3,6 +3,7 @@ using System;
 using KindredPaws.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828152732_AddRefreshTokens")]
+    partial class AddRefreshTokens
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -593,29 +596,6 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("Comments");
                 });
 
-            modelBuilder.Entity("KindredPaws.Api.Domain.Social.CommentLike", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CommentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CommentId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("CommentLikes");
-                });
-
             modelBuilder.Entity("KindredPaws.Api.Domain.Social.Like", b =>
                 {
                     b.Property<Guid>("Id")
@@ -979,17 +959,6 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                     b.Navigation("ParentComment");
 
                     b.Navigation("Post");
-                });
-
-            modelBuilder.Entity("KindredPaws.Api.Domain.Social.CommentLike", b =>
-                {
-                    b.HasOne("KindredPaws.Api.Domain.Social.Comment", "Comment")
-                        .WithMany()
-                        .HasForeignKey("CommentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Comment");
                 });
 
             modelBuilder.Entity("KindredPaws.Api.Domain.Social.Like", b =>

@@ -2,10 +2,13 @@ export type Comment = {
   id: string
   postId: string
   authorId: string
+  authorName: string
   parentCommentId: string | null
   body: string
   createdAt: string
   isMine: boolean
+  likeCount: number
+  likedByCurrentUser: boolean
 }
 
 export type LikeSummary = {

@@ -50,12 +50,12 @@ export function PostCard({ post }: Props) {
     }
   }
 
-  function openComments() {
+  function toggleComments() {
     if (!session.isAuthenticated) {
       navigate('/login')
       return
     }
-    setShowComments(true)
+    setShowComments((value) => !value)
   }
 
   const avatarThumb =
@@ -115,7 +115,7 @@ export function PostCard({ post }: Props) {
           </span>
           <span>{likeCount}</span>
         </button>
-        <button onClick={openComments}>
+        <button onClick={toggleComments} className={showComments ? 'active' : ''}>
           <span className="material-symbols-outlined">chat_bubble</span>
           <span>{commentCount}</span>
         </button>

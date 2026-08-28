@@ -96,10 +96,12 @@ builder.Services.AddScoped<LikeRepository>();
 builder.Services.AddScoped<FollowRepository>();
 builder.Services.AddScoped<NotificationRepository>();
 builder.Services.AddScoped<CommentRepository>();
+builder.Services.AddScoped<CommentLikeRepository>();
 builder.Services.AddScoped<ReportRepository>();
 builder.Services.AddSingleton<IThumbnailGenerator, ImageSharpThumbnailGenerator>();
 builder.Services.AddSingleton<IMinioService, MinioService>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
+builder.Services.AddScoped<RefreshTokenRepository>();
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
 builder.Services.AddCors(options =>

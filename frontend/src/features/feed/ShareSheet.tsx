@@ -9,6 +9,12 @@ type Props = {
   onClose: () => void
 }
 
+const DESTINATIONS = [
+  { key: 'whatsapp', label: 'WhatsApp', icon: '💬', className: 'share-tile-whatsapp' },
+  { key: 'facebook', label: 'Facebook', icon: '📘', className: 'share-tile-facebook' },
+  { key: 'x', label: 'X', icon: '✕', className: 'share-tile-x' },
+] as const
+
 export function ShareSheet({ url, title, text, postId, onClose }: Props) {
   const [copied, setCopied] = useState(false)
   const canUseWebShare = typeof navigator.share === 'function'
@@ -37,46 +43,47 @@ export function ShareSheet({ url, title, text, postId, onClose }: Props) {
     }
   }
 
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`
-  const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`
-  const x = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+  const links: Record<(typeof DESTINATIONS)[number]['key'], string> = {
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    x: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+  }
 
   return (
     <div className="sheet-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="sheet" onClick={(event) => event.stopPropagation()}>
+      <div className="sheet share-sheet" onClick={(event) => event.stopPropagation()}>
         <div className="sheet-handle" />
         <h2>Compartir</h2>
-        {canUseWebShare && (
-          <button className="primary-button" onClick={share}>
-            Compartir…
-          </button>
-        )}
-        <div className="share-links">
-          <a
-            className="share-link"
-            href={whatsapp}
-            target="_blank"
-            rel="noreferrer"
-            onClick={trackShare}
-          >
-            🟢 WhatsApp
-          </a>
-          <a
-            className="share-link"
-            href={facebook}
-            target="_blank"
-            rel="noreferrer"
-            onClick={trackShare}
-          >
-            🔵 Facebook
-          </a>
-          <a className="share-link" href={x} target="_blank" rel="noreferrer" onClick={trackShare}>
-            ⚫ X
-          </a>
-          <button className="share-link" onClick={copyLink}>
-            🔗 {copied ? 'Enlace copiado' : 'Copiar enlace'}
+
+        <div className="share-grid">
+          {DESTINATIONS.map((destination) => (
+            <a
+              key={destination.key}
+              className="share-tile"
+              href={links[destination.key]}
+              target="_blank"
+              rel="noreferrer"
+              onClick={trackShare}
+            >
+              <span className={`share-tile-icon ${destination.className}`}>{destination.icon}</span>
+              <span>{destination.label}</span>
+            </a>
+          ))}
+          <button className="share-tile" onClick={copyLink}>
+            <span className={`share-tile-icon share-tile-copy ${copied ? 'copied' : ''}`}>
+              <span className="material-symbols-outlined">{copied ? 'check' : 'link'}</span>
+            </span>
+            <span>{copied ? 'Enlace copiado' : 'Copiar enlace'}</span>
           </button>
         </div>
+
+        {canUseWebShare && (
+          <button className="share-native" onClick={share}>
+            <span className="material-symbols-outlined">ios_share</span>
+            Más opciones…
+          </button>
+        )}
+
         <button className="secondary-button" onClick={onClose}>
           Cerrar
         </button>

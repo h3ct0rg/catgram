@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomNav } from '../../components/layout/BottomNav'
+import { useSession } from '../../context/SessionContext'
 import {
   getNotificationPreferences,
   getNotifications,
@@ -21,11 +22,17 @@ const TYPE_LABEL: Record<NotificationType, string> = {
 
 export function NotificationsPage() {
   const navigate = useNavigate()
+  const session = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [preferences, setPreferences] = useState<NotificationPreference[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showPreferences, setShowPreferences] = useState(false)
+
+  async function handleLogout() {
+    await session.logout()
+    navigate('/')
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -144,6 +151,12 @@ export function NotificationsPage() {
             </button>
           ))}
         </div>
+
+        <section className="glass-card account-section">
+          <button className="logout-button" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </section>
       </main>
       <BottomNav
         onHome={() => navigate('/')}

@@ -37,5 +37,21 @@ public sealed class CommentsController(ICommentService commentService) : Control
         return NoContent();
     }
 
+    [HttpPut("api/v1/comments/{id:guid}/likes")]
+    [Authorize]
+    public async Task<IActionResult> Like(Guid id, CancellationToken ct)
+    {
+        await commentService.LikeAsync(id, CurrentUserId, ct);
+        return NoContent();
+    }
+
+    [HttpDelete("api/v1/comments/{id:guid}/likes")]
+    [Authorize]
+    public async Task<IActionResult> Unlike(Guid id, CancellationToken ct)
+    {
+        await commentService.UnlikeAsync(id, CurrentUserId, ct);
+        return NoContent();
+    }
+
     private Guid CurrentUserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 }

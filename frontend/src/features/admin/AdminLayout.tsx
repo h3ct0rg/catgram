@@ -39,6 +39,11 @@ export function AdminLayout() {
     return true
   })
 
+  async function handleLogout() {
+    await session.logout()
+    navigate('/')
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -76,6 +81,9 @@ export function AdminLayout() {
                 <span>{item.icon}</span> {item.label}
               </NavLink>
             ))}
+            <button className="admin-nav-logout" onClick={handleLogout}>
+              <span>🚪</span> Cerrar sesión
+            </button>
           </nav>
         </aside>
         <main className="admin-content admin-page">
