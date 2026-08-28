@@ -528,6 +528,10 @@ export function getShelters(name?: string): Promise<Shelter[]> {
   return request<Shelter[]>(`/api/v1/shelters${query}`)
 }
 
+export function getShelter(shelterId: string): Promise<Shelter> {
+  return request<Shelter>(`/api/v1/shelters/${shelterId}`)
+}
+
 // --- Adoption requests ---
 
 export function createAdoptionRequest(

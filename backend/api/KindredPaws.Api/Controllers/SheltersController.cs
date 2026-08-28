@@ -13,6 +13,10 @@ public sealed class SheltersController(IAnimalService animalService) : Controlle
     [AllowAnonymous]
     public Task<IReadOnlyCollection<ShelterResponse>> List([FromQuery] string? name, CancellationToken cancellationToken) => animalService.ListSheltersAsync(name, cancellationToken);
 
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    public Task<ShelterResponse> Get(Guid id, CancellationToken cancellationToken) => animalService.GetShelterAsync(id, cancellationToken);
+
     [HttpPost]
     [Authorize(Roles = Roles.SuperAdministrator)]
     public Task<ShelterResponse> Create(CreateShelterRequest request, CancellationToken cancellationToken) => animalService.CreateShelterAsync(request, cancellationToken);

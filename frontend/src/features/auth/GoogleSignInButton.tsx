@@ -1,20 +1,5 @@
 import { useEffect, useRef } from 'react'
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string
-            callback: (response: { credential: string }) => void
-          }) => void
-          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void
-        }
-      }
-    }
-  }
-}
 
 let googleScriptPromise: Promise<void> | null = null
 
@@ -46,10 +31,10 @@ export function GoogleSignInButton({ onCredential }: Props) {
     let cancelled = false
 
     loadGoogleScript().then(() => {
-      if (cancelled || !containerRef.current || !window.google) return
+      if (cancelled || !containerRef.current || !window.google?.accounts?.id) return
       window.google.accounts.id.initialize({
         client_id: clientId,
-        callback: (response) => onCredential(response.credential),
+        callback: (response: { credential: string }) => onCredential(response.credential),
       })
       window.google.accounts.id.renderButton(containerRef.current, {
         theme: 'outline',

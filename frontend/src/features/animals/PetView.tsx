@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BottomNav } from '../../components/layout/BottomNav'
 import { useSession } from '../../context/SessionContext'
-import { getAnimal, getAnimalStats } from '../../services/apiClient'
-import { Animal } from '../../types/domain'
+import { getAnimal, getAnimalStats, getShelter } from '../../services/apiClient'
+import { Animal, Shelter } from '../../types/domain'
 import { AnimalStats } from '../../types/admin'
 import {
   adoptionStatusColor,
@@ -14,6 +14,7 @@ import { SEX_OPTIONS, SIZE_OPTIONS } from '../../utils/animalOptions'
 import { ShareSheet } from '../feed/ShareSheet'
 import { AdoptionRequestModal } from '../adoption/AdoptionRequestModal'
 import { FollowButton } from './FollowButton'
+import { ShelterLocationMap } from '../../components/map/ShelterLocationMap'
 
 const ADMIN_ROLES = ['Administrador', 'SuperAdministrador']
 
@@ -22,6 +23,7 @@ export function PetView() {
   const navigate = useNavigate()
   const session = useSession()
   const [animal, setAnimal] = useState<Animal | null>(null)
+  const [shelter, setShelter] = useState<Shelter | null>(null)
   const [stats, setStats] = useState<AnimalStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -35,7 +37,16 @@ export function PetView() {
     setLoading(true)
     getAnimal(animalId)
       .then((result) => {
-        if (!cancelled) setAnimal(result)
+        if (!cancelled) {
+          setAnimal(result)
+          if (result.shelterId) {
+            getShelter(result.shelterId)
+              .then((s) => {
+                if (!cancelled) setShelter(s)
+              })
+              .catch(() => undefined)
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) setError('No pudimos encontrar a esta mascota.')
@@ -47,6 +58,7 @@ export function PetView() {
       cancelled = true
     }
   }, [animalId])
+
 
   useEffect(() => {
     if (!animalId || !isAdmin) return
@@ -219,13 +231,13 @@ export function PetView() {
           <h2>
             <span className="material-symbols-outlined">location_on</span> Ubicación
           </h2>
-          <p>
-            {animal.shelterName}
-            {animal.location ? ` · ${animal.location}` : ''}
-          </p>
-          <div className="location-map-placeholder">
-            <span className="material-symbols-outlined">location_on</span>
-          </div>
+          <ShelterLocationMap
+            latitude={shelter?.latitude ?? null}
+            longitude={shelter?.longitude ?? null}
+            shelterName={animal.shelterName}
+            address={shelter?.address}
+            city={shelter?.city}
+          />
         </div>
 
         {showShare && (

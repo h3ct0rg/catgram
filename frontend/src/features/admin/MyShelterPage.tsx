@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { getMyShelter, updateMyShelter } from '../../services/apiClient'
 import { Shelter } from '../../types/domain'
+import { LocationPickerMap } from '../../components/map/LocationPickerMap'
 
 export function MyShelterPage() {
   const [shelter, setShelter] = useState<Shelter | null>(null)
@@ -18,6 +19,11 @@ export function MyShelterPage() {
 
   function update<K extends keyof Shelter>(key: K, value: Shelter[K]) {
     setShelter((current) => (current ? { ...current, [key]: value } : current))
+    setSaved(false)
+  }
+
+  function handleLocationChange(lat: number, lng: number) {
+    setShelter((current) => (current ? { ...current, latitude: lat, longitude: lng } : current))
     setSaved(false)
   }
 
@@ -128,36 +134,21 @@ export function MyShelterPage() {
             onChange={(event) => update('email', event.target.value)}
           />
         </label>
-        <div className="two-columns">
-          <label>
-            Latitud (para "cerca de mí")
-            <input
-              type="number"
-              step="any"
-              value={shelter.latitude ?? ''}
-              onChange={(event) =>
-                update('latitude', event.target.value ? Number(event.target.value) : null)
-              }
-            />
-          </label>
-          <label>
-            Longitud
-            <input
-              type="number"
-              step="any"
-              value={shelter.longitude ?? ''}
-              onChange={(event) =>
-                update('longitude', event.target.value ? Number(event.target.value) : null)
-              }
-            />
-          </label>
-        </div>
+
+        {/* Google Maps Pin Picker */}
+        <LocationPickerMap
+          latitude={shelter.latitude}
+          longitude={shelter.longitude}
+          onChange={handleLocationChange}
+          shelterName={shelter.name}
+        />
+
         {error && (
           <p className="feedback" role="status">
             {error}
           </p>
         )}
-        {saved && <p className="body-copy">Guardado.</p>}
+        {saved && <p className="body-copy">Guardado con éxito. 🐾</p>}
         <button className="primary-button" type="submit" disabled={saving}>
           {saving ? 'Guardando…' : 'Guardar refugio'}
         </button>
@@ -165,3 +156,4 @@ export function MyShelterPage() {
     </div>
   )
 }
+
