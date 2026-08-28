@@ -43,10 +43,15 @@ export function FollowButton({ animalId }: Props) {
   }
 
   return (
-    <button className="secondary-button follow-button" onClick={toggle} disabled={pending}>
-      {summary.followedByCurrentUser
-        ? `✓ Siguiendo (${summary.followerCount})`
-        : `+ Seguir (${summary.followerCount})`}
+    <button
+      className={`secondary-button follow-button ${summary.followedByCurrentUser ? 'following' : ''}`}
+      onClick={toggle}
+      disabled={pending}
+    >
+      <span className="material-symbols-outlined">
+        {summary.followedByCurrentUser ? 'check' : 'person_add'}
+      </span>
+      {summary.followedByCurrentUser ? 'Siguiendo' : 'Seguir'} ({summary.followerCount})
     </button>
   )
 }

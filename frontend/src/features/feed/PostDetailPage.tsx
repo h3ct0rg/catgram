@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { BottomNav } from '../../components/layout/BottomNav'
 import { getPost } from '../../services/apiClient'
 import { Post } from '../../types/domain'
 import { PostCard } from './PostCard'
@@ -31,20 +32,27 @@ export function PostDetailPage() {
   }, [postId])
 
   return (
-    <main className="feed-page post-detail-page">
-      <button className="back-button" onClick={() => navigate('/')}>
-        ‹ Volver
-      </button>
-      {loading && <p className="body-copy">Cargando publicación…</p>}
-      {!loading && error && (
-        <>
-          <p className="body-copy">{error}</p>
-          <button className="primary-button" onClick={() => navigate('/')}>
-            Volver al muro
-          </button>
-        </>
-      )}
-      {!loading && post && <PostCard post={post} />}
-    </main>
+    <div className="app-shell">
+      <main className="feed-page post-detail-page">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          ‹ Volver
+        </button>
+        {loading && <p className="body-copy">Cargando publicación…</p>}
+        {!loading && error && (
+          <>
+            <p className="body-copy">{error}</p>
+            <button className="primary-button" onClick={() => navigate('/')}>
+              Volver al muro
+            </button>
+          </>
+        )}
+        {!loading && post && <PostCard post={post} />}
+      </main>
+      <BottomNav
+        onHome={() => navigate('/')}
+        onSearch={() => navigate('/search')}
+        onCreate={() => navigate('/animals/new')}
+      />
+    </div>
   )
 }

@@ -96,8 +96,29 @@ public sealed class AuthService(
         if (!string.IsNullOrWhiteSpace(invitationToken))
             return await AcceptInvitationAsync(new AcceptInvitationRequest(invitationToken, payload.Subject, payload.Email), cancellationToken);
 
-        var user = await userManager.FindByLoginAsync("Google", payload.Subject)
-            ?? throw new UnauthorizedAccessException("Esta cuenta de Google no está registrada. Solicita una invitación.");
+        var user = await userManager.FindByLoginAsync("Google", payload.Subject);
+        if (user is null)
+        {
+            // No invitation and no Google login on file yet: self-register as a plain Usuario (like,
+            // comment, request adoption) rather than requiring an invitation for every sign-in — only
+            // Administrador/SuperAdministrador accounts go through the invitation flow.
+            user = await userManager.FindByEmailAsync(payload.Email);
+            if (user is null)
+            {
+                user = new ApplicationUser
+                {
+                    UserName = payload.Email,
+                    Email = payload.Email,
+                    FullName = string.IsNullOrWhiteSpace(payload.Name) ? payload.Email : payload.Name,
+                    EmailConfirmed = true,
+                    IsActive = true
+                };
+                var created = await userManager.CreateAsync(user);
+                if (!created.Succeeded) throw new InvalidOperationException(string.Join("; ", created.Errors.Select(x => x.Description)));
+                await userManager.AddToRoleAsync(user, Roles.User);
+            }
+            await userManager.AddLoginAsync(user, new UserLoginInfo("Google", payload.Subject, "Google"));
+        }
         if (!user.IsActive) throw new UnauthorizedAccessException("Credenciales inválidas.");
 
         user.LastLoginAt = DateTimeOffset.UtcNow;

@@ -55,10 +55,7 @@ export function CreatePostPage() {
     }
     setFileError('')
     setFiles(next)
-    setPreviews((current) => [
-      ...current,
-      ...incoming.map((file) => URL.createObjectURL(file)),
-    ])
+    setPreviews((current) => [...current, ...incoming.map((file) => URL.createObjectURL(file))])
   }
 
   function removeFile(index: number) {
@@ -165,7 +162,9 @@ export function CreatePostPage() {
             <span className="field-label">Fotos y videos</span>
             <label htmlFor="post-media" className="upload-box">
               ＋<strong>Agregar fotos o video</strong>
-              <small>Hasta {MAX_PHOTOS} fotos y {MAX_VIDEOS} videos · JPG, PNG, WEBP o MP4</small>
+              <small>
+                Hasta {MAX_PHOTOS} fotos y {MAX_VIDEOS} videos · JPG, PNG, WEBP o MP4
+              </small>
             </label>
             <input
               id="post-media"

@@ -3,12 +3,12 @@ import { createAdoptionRequest } from '../../services/apiClient'
 
 type Props = { animalId: string; animalName: string; onClose: () => void }
 
-const QUESTIONS: Array<{ key: string; label: string }> = [
+const QUESTIONS: Array<{ key: string; label: string; multiline?: boolean }> = [
   { key: 'tipoVivienda', label: '¿Qué tipo de vivienda tienes?' },
   { key: 'tienePatio', label: '¿Tienes patio o espacio exterior?' },
   { key: 'tieneOtrosAnimales', label: '¿Tienes otras mascotas en casa?' },
   { key: 'tieneNinos', label: '¿Hay niños en casa?' },
-  { key: 'experiencia', label: '¿Qué experiencia tienes con mascotas?' },
+  { key: 'experiencia', label: '¿Qué experiencia tienes con mascotas?', multiline: true },
 ]
 
 export function AdoptionRequestModal({ animalId, animalName, onClose }: Props) {
@@ -50,13 +50,30 @@ export function AdoptionRequestModal({ animalId, animalName, onClose }: Props) {
             {QUESTIONS.map((question) => (
               <label key={question.key}>
                 {question.label}
-                <input
-                  value={answers[question.key] ?? ''}
-                  onChange={(event) =>
-                    setAnswers((current) => ({ ...current, [question.key]: event.target.value }))
-                  }
-                  required
-                />
+                {question.multiline ? (
+                  <textarea
+                    rows={4}
+                    value={answers[question.key] ?? ''}
+                    onChange={(event) =>
+                      setAnswers((current) => ({
+                        ...current,
+                        [question.key]: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                ) : (
+                  <input
+                    value={answers[question.key] ?? ''}
+                    onChange={(event) =>
+                      setAnswers((current) => ({
+                        ...current,
+                        [question.key]: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                )}
               </label>
             ))}
             {error && (

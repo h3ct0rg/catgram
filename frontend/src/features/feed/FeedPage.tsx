@@ -63,21 +63,23 @@ export function FeedPage() {
     <div className="app-shell">
       <TopBar onHome={() => navigate('/')} />
       <main className="feed-page">
-        <div className="feed-heading">
-          <div>
-            <p className="eyebrow">Un hogar empieza aquí</p>
-            <h1>Descubre historias</h1>
-          </div>
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as Sort)}
-            aria-label="Ordenar publicaciones"
-          >
-            <option value="recent">Más recientes</option>
-            <option value="popular">Más populares</option>
-          </select>
-        </div>
         <StoryRail stories={stories} />
+        <div className="feed-sort-toggle" role="group" aria-label="Ordenar publicaciones">
+          <button
+            type="button"
+            className={sort === 'recent' ? 'active' : ''}
+            onClick={() => setSort('recent')}
+          >
+            Recientes
+          </button>
+          <button
+            type="button"
+            className={sort === 'popular' ? 'active' : ''}
+            onClick={() => setSort('popular')}
+          >
+            Populares
+          </button>
+        </div>
         {error && (
           <p className="feedback" role="status">
             {error}

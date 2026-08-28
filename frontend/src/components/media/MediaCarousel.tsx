@@ -48,10 +48,7 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
     >
-      <div
-        className="media-track"
-        style={{ transform: `translateX(-${index * 100}%)` }}
-      >
+      <div className="media-track" style={{ transform: `translateX(-${index * 100}%)` }}>
         {media.map((item) =>
           item.contentType.startsWith('video/') ? (
             <div className="media-slide" key={item.id}>
@@ -62,11 +59,13 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
                 preload="metadata"
                 onClick={(event) => event.stopPropagation()}
               />
-              <span className="video-badge">🎬</span>
+              <span className="video-badge media-overlay-badge">
+                <span className="material-symbols-outlined">videocam</span>
+              </span>
             </div>
           ) : (
             <div className="media-slide" key={item.id}>
-              <img src={item.thumbnailUrl ?? item.url} alt="" />
+              <img src={item.url} alt="" />
             </div>
           ),
         )}
@@ -87,7 +86,7 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
               />
             ))}
           </div>
-          <span className="carousel-counter">
+          <span className="carousel-counter media-overlay-badge">
             {index + 1}/{media.length}
           </span>
         </>

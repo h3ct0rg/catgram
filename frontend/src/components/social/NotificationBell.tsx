@@ -42,7 +42,7 @@ export function NotificationBell() {
       aria-label="Notificaciones"
       onClick={() => navigate('/notifications')}
     >
-      🔔
+      <span className="material-symbols-outlined">notifications</span>
       {unreadCount > 0 && (
         <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
       )}

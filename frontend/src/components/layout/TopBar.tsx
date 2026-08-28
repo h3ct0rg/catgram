@@ -27,7 +27,7 @@ export function TopBar({ onHome }: Props) {
       <div className="topbar-actions">
         <NotificationBell />
         <button className="avatar" aria-label="Abrir perfil" onClick={goToProfile}>
-          👩🏻
+          <span className="material-symbols-outlined">person</span>
         </button>
       </div>
     </header>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BottomNav } from '../../components/layout/BottomNav'
 import {
   getNotificationPreferences,
   getNotifications,
@@ -78,67 +79,77 @@ export function NotificationsPage() {
   }
 
   return (
-    <main className="feed-page notifications-page">
-      <button className="back-button" onClick={() => navigate('/')}>
-        ‹ Volver
-      </button>
-      <div className="feed-heading">
-        <div>
-          <p className="eyebrow">Centro de notificaciones</p>
-          <h1>Novedades</h1>
-        </div>
-        <button className="secondary-button" onClick={() => setShowPreferences((value) => !value)}>
-          Preferencias
+    <div className="app-shell">
+      <main className="feed-page notifications-page">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          ‹ Volver
         </button>
-      </div>
-
-      {showPreferences && (
-        <section className="glass-card notification-preferences">
-          {preferences.map((pref) => (
-            <label className="preference-row" key={pref.type}>
-              <span>{TYPE_LABEL[pref.type]}</span>
-              <input
-                type="checkbox"
-                checked={pref.enabled}
-                onChange={(event) => togglePreference(pref.type, event.target.checked)}
-              />
-            </label>
-          ))}
-        </section>
-      )}
-
-      {notifications.some((item) => !item.isRead) && (
-        <button className="secondary-button" onClick={markAllRead}>
-          Marcar todas como leídas
-        </button>
-      )}
-
-      {loading && <p className="body-copy">Cargando…</p>}
-      {!loading && error && (
-        <p className="feedback" role="status">
-          {error}
-        </p>
-      )}
-      {!loading && !error && notifications.length === 0 && (
-        <p className="body-copy">No tienes notificaciones todavía.</p>
-      )}
-
-      <div className="notification-list">
-        {notifications.map((notification) => (
+        <div className="feed-heading">
+          <div>
+            <p className="eyebrow">Centro de notificaciones</p>
+            <h1>Novedades</h1>
+          </div>
           <button
-            className={`notification-item ${notification.isRead ? '' : 'unread'}`}
-            key={notification.id}
-            onClick={() => {
-              markRead(notification)
-              if (notification.linkUrl) navigate(notification.linkUrl)
-            }}
+            className="secondary-button"
+            onClick={() => setShowPreferences((value) => !value)}
           >
-            <strong>{notification.title}</strong>
-            <p>{notification.body}</p>
-            <small>{formatRelativeTime(notification.createdAt)}</small>
+            Preferencias
           </button>
-        ))}
-      </div>
-    </main>
+        </div>
+
+        {showPreferences && (
+          <section className="glass-card notification-preferences">
+            {preferences.map((pref) => (
+              <label className="preference-row" key={pref.type}>
+                <span>{TYPE_LABEL[pref.type]}</span>
+                <input
+                  type="checkbox"
+                  checked={pref.enabled}
+                  onChange={(event) => togglePreference(pref.type, event.target.checked)}
+                />
+              </label>
+            ))}
+          </section>
+        )}
+
+        {notifications.some((item) => !item.isRead) && (
+          <button className="secondary-button" onClick={markAllRead}>
+            Marcar todas como leídas
+          </button>
+        )}
+
+        {loading && <p className="body-copy">Cargando…</p>}
+        {!loading && error && (
+          <p className="feedback" role="status">
+            {error}
+          </p>
+        )}
+        {!loading && !error && notifications.length === 0 && (
+          <p className="body-copy">No tienes notificaciones todavía.</p>
+        )}
+
+        <div className="notification-list">
+          {notifications.map((notification) => (
+            <button
+              className={`notification-item ${notification.isRead ? '' : 'unread'}`}
+              key={notification.id}
+              onClick={() => {
+                markRead(notification)
+                if (notification.linkUrl) navigate(notification.linkUrl)
+              }}
+            >
+              <strong>{notification.title}</strong>
+              <p>{notification.body}</p>
+              <small>{formatRelativeTime(notification.createdAt)}</small>
+            </button>
+          ))}
+        </div>
+      </main>
+      <BottomNav
+        onHome={() => navigate('/')}
+        onSearch={() => navigate('/search')}
+        onCreate={() => navigate('/animals/new')}
+      />
+    </div>
   )
 }

@@ -58,10 +58,19 @@ export function PostCard({ post }: Props) {
     setShowComments(true)
   }
 
+  const avatarThumb =
+    post.media.find((media) => media.isPrimary)?.thumbnailUrl ?? post.media[0]?.thumbnailUrl
+
   return (
     <article className="post-card">
       <div className="post-meta">
-        <span className="shelter-icon">🏠</span>
+        <span className="shelter-icon">
+          {avatarThumb ? (
+            <img src={avatarThumb} alt={post.animalName} />
+          ) : (
+            <span className="material-symbols-outlined">storefront</span>
+          )}
+        </span>
         <Link to={`/animals/${post.animalId}`} className="post-meta-link">
           <strong>{post.shelterName}</strong>
           <small>📍 {post.animalName}</small>
@@ -71,7 +80,7 @@ export function PostCard({ post }: Props) {
           aria-label="Más opciones"
           onClick={() => setShowMenu((value) => !value)}
         >
-          •••
+          <span className="material-symbols-outlined">more_horiz</span>
         </button>
         {showMenu && (
           <div className="post-menu">
@@ -98,12 +107,21 @@ export function PostCard({ post }: Props) {
       </div>
       <div className="post-actions">
         <button onClick={toggleLike} className={liked ? 'liked' : ''} aria-pressed={liked}>
-          {liked ? '♥' : '♡'} <span>{likeCount}</span>
+          <span
+            className="material-symbols-outlined"
+            style={{ fontVariationSettings: `'FILL' ${liked ? 1 : 0}` }}
+          >
+            favorite
+          </span>
+          <span>{likeCount}</span>
         </button>
         <button onClick={openComments}>
-          ▢ <span>{commentCount}</span>
+          <span className="material-symbols-outlined">chat_bubble</span>
+          <span>{commentCount}</span>
         </button>
-        <button onClick={() => setShowShare(true)}>⌁</button>
+        <button onClick={() => setShowShare(true)}>
+          <span className="material-symbols-outlined">send</span>
+        </button>
       </div>
       <p className="caption">
         <strong>{post.shelterName}</strong> {post.caption}
