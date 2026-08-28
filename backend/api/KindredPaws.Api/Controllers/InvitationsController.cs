@@ -17,7 +17,7 @@ public sealed class InvitationsController(IInvitationService invitationService) 
     public async Task<ActionResult<InvitationResponse>> Create(CreateInvitationRequest request, CancellationToken cancellationToken)
     {
         var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-        return Ok(await invitationService.CreateAsync(request.Email, request.FullName, request.Role, userId, cancellationToken));
+        return Ok(await invitationService.CreateAsync(request.Email, request.FullName, request.Role, request.ShelterId, request.NewShelterName, userId, cancellationToken));
     }
 
     [HttpDelete("{id:guid}")]
@@ -26,6 +26,10 @@ public sealed class InvitationsController(IInvitationService invitationService) 
         await invitationService.RevokeAsync(id, cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/resend")]
+    public async Task<ActionResult<InvitationResponse>> Resend(Guid id, CancellationToken cancellationToken) =>
+        Ok(await invitationService.ResendAsync(id, cancellationToken));
 }
 
-public sealed record CreateInvitationRequest(string Email, string FullName, string Role);
+public sealed record CreateInvitationRequest(string Email, string FullName, string Role, Guid? ShelterId, string? NewShelterName);

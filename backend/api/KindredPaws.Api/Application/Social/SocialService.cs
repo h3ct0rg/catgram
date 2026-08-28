@@ -27,26 +27,30 @@ public sealed class SocialService(
     IEventPublisher eventPublisher,
     IAuditService audit) : ISocialService
 {
-    public async Task<PostResponse> CreatePostAsync(CreatePostRequest r, Guid createdByUserId, IReadOnlyCollection<MediaUpload> media, CancellationToken ct)
+    public async Task<PostResponse> CreatePostAsync(CreatePostRequest r, Guid createdByUserId, Guid? actorShelterId, IReadOnlyCollection<MediaUpload> media, CancellationToken ct)
     {
-        var animal = await repository.GetAnimalAsync(r.AnimalId, r.ShelterId, ct) ?? throw new KeyNotFoundException("Animal no encontrado en el refugio.");
-        var post = new Post { ShelterId = r.ShelterId, AnimalId = r.AnimalId, CreatedByUserId = createdByUserId, Caption = r.Caption.Trim(), Location = r.Location, Hashtags = r.Hashtags, IsFeatured = r.IsFeatured };
+        var effectiveShelterId = actorShelterId ?? r.ShelterId;
+        var animal = await repository.GetAnimalAsync(r.AnimalId, effectiveShelterId, ct) ?? throw new KeyNotFoundException("Animal no encontrado en el refugio.");
+        var post = new Post { ShelterId = effectiveShelterId, AnimalId = r.AnimalId, CreatedByUserId = createdByUserId, Caption = r.Caption.Trim(), Location = r.Location, Hashtags = r.Hashtags, IsFeatured = r.IsFeatured, IsSuccessStory = r.IsSuccessStory };
         await AddPostMediaAsync(post, media, ct); await repository.AddPostAsync(post, ct); await repository.SaveAsync(ct);
         await NotifyFollowersOfNewPostAsync(animal, post, ct);
         return await ToResponseAsync(post, animal, null, ct);
     }
 
-    public async Task<PostResponse> UpdatePostAsync(Guid id, UpdatePostRequest r, CancellationToken ct)
+    public async Task<PostResponse> UpdatePostAsync(Guid id, UpdatePostRequest r, Guid? actorShelterId, CancellationToken ct)
     {
         var post = await repository.GetPostAsync(id, ct) ?? throw new KeyNotFoundException("Publicación no encontrada.");
+        EnsureShelterAccess(post.ShelterId, actorShelterId);
         post.Caption = r.Caption.Trim(); post.Location = r.Location; post.Hashtags = r.Hashtags; post.IsFeatured = r.IsFeatured; post.UpdatedAt = DateTimeOffset.UtcNow; await repository.SaveAsync(ct);
         var animal = (await repository.GetAnimalsByIdsAsync([post.AnimalId], ct)).GetValueOrDefault(post.AnimalId);
         return await ToResponseAsync(post, animal, null, ct);
     }
 
-    public async Task HidePostAsync(Guid id, Guid actorUserId, CancellationToken ct)
+    public async Task HidePostAsync(Guid id, Guid actorUserId, Guid? actorShelterId, CancellationToken ct)
     {
-        var post = await repository.GetPostAsync(id, ct) ?? throw new KeyNotFoundException("Publicación no encontrada."); post.Visibility = ContentVisibility.Hidden; await repository.SaveAsync(ct);
+        var post = await repository.GetPostAsync(id, ct) ?? throw new KeyNotFoundException("Publicación no encontrada.");
+        EnsureShelterAccess(post.ShelterId, actorShelterId);
+        post.Visibility = ContentVisibility.Hidden; await repository.SaveAsync(ct);
         await audit.RecordAsync(actorUserId, AuditAction.PostHidden, "Post", id, null, ct);
     }
 
@@ -58,11 +62,11 @@ public sealed class SocialService(
         return await ToResponseAsync(post, animal, currentUserId, ct);
     }
 
-    public async Task<IReadOnlyCollection<PostResponse>> GetFeedAsync(DateTimeOffset? before, int skip, int pageSize, string sort, Guid? currentUserId, CancellationToken ct)
+    public async Task<IReadOnlyCollection<PostResponse>> GetFeedAsync(DateTimeOffset? before, int skip, int pageSize, string sort, bool successStoriesOnly, Guid? currentUserId, CancellationToken ct)
     {
         pageSize = Math.Clamp(pageSize, 1, 50);
         skip = Math.Max(skip, 0);
-        var posts = await repository.ListFeedAsync(before, skip, pageSize, sort == "popular", ct);
+        var posts = await repository.ListFeedAsync(before, skip, pageSize, sort == "popular", successStoriesOnly, ct);
         if (posts.Count == 0) return [];
 
         var postIds = posts.Select(x => x.Id).ToArray();
@@ -82,12 +86,13 @@ public sealed class SocialService(
             likedPostIds.Contains(post.Id))));
     }
 
-    public async Task<StoryResponse> CreateStoryAsync(CreateStoryRequest r, MediaUpload media, CancellationToken ct)
+    public async Task<StoryResponse> CreateStoryAsync(CreateStoryRequest r, Guid? actorShelterId, MediaUpload media, CancellationToken ct)
     {
-        var valid = await repository.AnimalExistsAsync(r.AnimalId, r.ShelterId, ct); if (!valid) throw new KeyNotFoundException("Animal no encontrado en el refugio.");
+        var effectiveShelterId = actorShelterId ?? r.ShelterId;
+        var valid = await repository.AnimalExistsAsync(r.AnimalId, effectiveShelterId, ct); if (!valid) throw new KeyNotFoundException("Animal no encontrado en el refugio.");
         ValidateMedia(media);
         var key = $"stories/{Guid.NewGuid():N}-{Path.GetFileName(media.FileName)}"; await storage.PutAsync(key, media.Content, media.Length, media.ContentType, ct);
-        var story = new Story { ShelterId = r.ShelterId, AnimalId = r.AnimalId, Caption = r.Caption.Trim(), ObjectKey = key, ContentType = media.ContentType }; await repository.AddStoryAsync(story, ct); await repository.SaveAsync(ct);
+        var story = new Story { ShelterId = effectiveShelterId, AnimalId = r.AnimalId, Caption = r.Caption.Trim(), ObjectKey = key, ContentType = media.ContentType }; await repository.AddStoryAsync(story, ct); await repository.SaveAsync(ct);
         var animal = (await repository.GetAnimalsByIdsAsync([story.AnimalId], ct)).GetValueOrDefault(story.AnimalId);
         return await ToStoryResponseAsync(story, animal, ct);
     }
@@ -150,6 +155,13 @@ public sealed class SocialService(
         return thumbnailKey;
     }
 
+    /// <summary>actorShelterId is null for SuperAdmin (unrestricted); Administradores are confined to their own shelter's content.</summary>
+    private static void EnsureShelterAccess(Guid contentShelterId, Guid? actorShelterId)
+    {
+        if (actorShelterId.HasValue && contentShelterId != actorShelterId.Value)
+            throw new UnauthorizedAccessException("No puedes gestionar contenido de otro refugio.");
+    }
+
     private static void ValidateMedia(MediaUpload m) { if (m.Length <= 0 || m.Length > 50 * 1024 * 1024 || !new[] { "image/jpeg", "image/png", "image/webp", "video/mp4" }.Contains(m.ContentType)) throw new ArgumentException("Archivo no permitido o excede 50 MB."); }
     private async Task<AnimalMediaResponse> ToMediaResponseAsync(PostMedia m, CancellationToken ct) => new(m.Id, await storage.GetUrlAsync(m.ObjectKey, ct), m.ThumbnailObjectKey is null ? null : await storage.GetUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
 
@@ -160,7 +172,7 @@ public sealed class SocialService(
         likedByCurrentUser ??= currentUserId.HasValue && await likes.ExistsAsync(x.Id, currentUserId.Value, ct);
         return new(
             x.Id, x.ShelterId, animal?.Shelter?.Name ?? "", x.AnimalId, animal?.Name ?? "", animal?.AdoptionStatus.ToString() ?? "",
-            x.Caption, x.Location, x.Hashtags, x.IsFeatured, x.CreatedAt,
+            x.Caption, x.Location, x.Hashtags, x.IsFeatured, x.IsSuccessStory, x.CreatedAt,
             likeCount.Value, commentCount.Value, likedByCurrentUser.Value,
             (await Task.WhenAll(x.Media.Select(m => ToMediaResponseAsync(m, ct)))).ToArray());
     }

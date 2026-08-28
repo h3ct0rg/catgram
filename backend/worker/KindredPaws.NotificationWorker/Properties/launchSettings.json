@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "KindredPaws.NotificationWorker": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ using KindredPaws.Api.Domain.Follows;
 using KindredPaws.Api.Domain.Notifications;
 using KindredPaws.Api.Domain.Moderation;
 using KindredPaws.Api.Domain.Audit;
+using KindredPaws.Api.Domain.Adoption;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -30,22 +31,32 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AdoptionRequest> AdoptionRequests => Set<AdoptionRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         builder.Entity<ApplicationUser>().Property(x => x.FullName).HasMaxLength(160).IsRequired();
+        builder.Entity<ApplicationUser>().HasIndex(x => x.ShelterId);
+        builder.Entity<ApplicationUser>().HasOne<Shelter>().WithMany().HasForeignKey(x => x.ShelterId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Invitation>().HasKey(x => x.Id);
+        builder.Entity<Invitation>().HasOne<Shelter>().WithMany().HasForeignKey(x => x.ShelterId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Invitation>().HasIndex(x => x.TokenHash).IsUnique();
         builder.Entity<Invitation>().HasIndex(x => new { x.Email, x.UsedAt });
         builder.Entity<Invitation>().Property(x => x.Email).HasMaxLength(320).IsRequired();
         builder.Entity<Invitation>().Property(x => x.Role).HasMaxLength(80).IsRequired();
         builder.Entity<Shelter>().Property(x => x.Name).HasMaxLength(180).IsRequired();
+        builder.Entity<Shelter>().HasIndex(x => x.Name);
         builder.Entity<Animal>().Property(x => x.Name).HasMaxLength(120).IsRequired();
         builder.Entity<Animal>().HasIndex(x => new { x.ShelterId, x.AdoptionStatus });
+        builder.Entity<Animal>().HasIndex(x => x.Name);
+        builder.Entity<Animal>().HasIndex(x => x.Species);
+        builder.Entity<Animal>().HasIndex(x => x.Sex);
+        builder.Entity<Animal>().HasIndex(x => x.Size);
         builder.Entity<AnimalMedia>().Property(x => x.ObjectKey).HasMaxLength(500).IsRequired();
         builder.Entity<Animal>().HasMany(x => x.Media).WithOne(x => x.Animal).HasForeignKey(x => x.AnimalId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<Post>().HasIndex(x => new { x.Visibility, x.CreatedAt });
+        builder.Entity<Post>().HasIndex(x => x.IsSuccessStory);
         builder.Entity<Post>().HasMany(x => x.Media).WithOne(x => x.Post).HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<Story>().HasIndex(x => x.ExpiresAt);
         builder.Entity<Story>().HasMany(x => x.Views).WithOne(x => x.Story).HasForeignKey(x => x.StoryId).OnDelete(DeleteBehavior.Cascade);
@@ -74,5 +85,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<AuditLog>().Property(x => x.Details).HasMaxLength(1000);
         builder.Entity<AuditLog>().HasIndex(x => x.CreatedAt);
         builder.Entity<AuditLog>().HasIndex(x => new { x.EntityType, x.EntityId });
+
+        builder.Entity<AdoptionRequest>().HasIndex(x => new { x.AnimalId, x.Status });
+        builder.Entity<AdoptionRequest>().HasIndex(x => x.ApplicantUserId);
     }
 }

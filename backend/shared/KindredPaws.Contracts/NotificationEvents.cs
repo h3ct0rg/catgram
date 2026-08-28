@@ -8,6 +8,8 @@ public static class NotificationEventTypes
     public const string CommentReplyCreated = "social.comment-reply-created";
     public const string AdoptionStatusChanged = "animal.adoption-status-changed";
     public const string PostCreated = "social.post-created";
+    public const string AdoptionRequestStatusChanged = "adoption.request-status-changed";
+    public const string NewAdoptionRequest = "adoption.request-created";
 }
 
 public sealed record EventEnvelope(string EventId, string Type, DateTimeOffset OccurredAt, object Payload);
@@ -20,3 +22,5 @@ public sealed record CommentCreatedEvent(Guid CommentId, Guid PostId, Guid Recip
 public sealed record CommentReplyCreatedEvent(Guid CommentId, Guid ParentCommentId, Guid RecipientUserId, string RecipientEmail, string RecipientName, Guid AuthorUserId, string Excerpt);
 public sealed record AdoptionStatusChangedEvent(Guid AnimalId, string AnimalName, string OldStatus, string NewStatus, Guid RecipientUserId, string RecipientEmail, string RecipientName);
 public sealed record PostCreatedEvent(Guid PostId, Guid AnimalId, string AnimalName, Guid ShelterId, Guid RecipientUserId, string RecipientEmail, string RecipientName);
+public sealed record AdoptionRequestStatusChangedEvent(Guid RequestId, Guid AnimalId, string AnimalName, string Status, Guid RecipientUserId, string RecipientEmail, string RecipientName);
+public sealed record NewAdoptionRequestEvent(Guid RequestId, Guid AnimalId, string AnimalName, string ApplicantName, Guid RecipientUserId, string RecipientEmail, string RecipientName);

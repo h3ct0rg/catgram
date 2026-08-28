@@ -9,9 +9,10 @@ public sealed class SocialRepository(AppDbContext db)
     public Task<Animal?> GetAnimalAsync(Guid animalId, Guid shelterId, CancellationToken ct) => db.Animals.Include(x => x.Shelter).SingleOrDefaultAsync(x => x.Id == animalId && x.ShelterId == shelterId, ct);
     public Task AddPostAsync(Post post, CancellationToken ct) { db.Posts.Add(post); return Task.CompletedTask; }
     public Task<Post?> GetPostAsync(Guid id, CancellationToken ct) => db.Posts.Include(x => x.Media).SingleOrDefaultAsync(x => x.Id == id, ct);
-    public async Task<IReadOnlyCollection<Post>> ListFeedAsync(DateTimeOffset? before, int skip, int pageSize, bool popular, CancellationToken ct)
+    public async Task<IReadOnlyCollection<Post>> ListFeedAsync(DateTimeOffset? before, int skip, int pageSize, bool popular, bool successStoriesOnly, CancellationToken ct)
     {
         var query = db.Posts.AsNoTracking().Include(x => x.Media).Where(x => x.Visibility == ContentVisibility.Published);
+        if (successStoriesOnly) query = query.Where(x => x.IsSuccessStory);
         if (popular)
         {
             return await query

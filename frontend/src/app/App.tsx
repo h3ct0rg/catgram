@@ -12,9 +12,16 @@ import { DashboardPage } from '../features/admin/DashboardPage'
 import { ReportsInboxPage } from '../features/admin/ReportsInboxPage'
 import { UsersPage } from '../features/admin/UsersPage'
 import { AuditLogPage } from '../features/admin/AuditLogPage'
+import { AdoptionRequestsPage } from '../features/admin/AdoptionRequestsPage'
+import { CreatePostPage } from '../features/admin/CreatePostPage'
+import { InviteUserPage } from '../features/admin/InviteUserPage'
+import { MyShelterPage } from '../features/admin/MyShelterPage'
+import { SearchPage } from '../features/discovery/SearchPage'
 import { RequireRole } from './RequireRole'
 
 const ADMIN_ROLES = ['Administrador', 'SuperAdministrador']
+const SUPER_ADMIN_ONLY = ['SuperAdministrador']
+const ADMINISTRADOR_ONLY = ['Administrador']
 
 function RootRoute() {
   const [params] = useSearchParams()
@@ -61,6 +68,7 @@ export function App() {
         <Route path="/p/:postId" element={<PostDetailPage />} />
         <Route path="/stories/:storyId" element={<StoryViewer />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route
           path="/admin"
           element={
@@ -71,8 +79,40 @@ export function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="reports" element={<ReportsInboxPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="audit" element={<AuditLogPage />} />
+          <Route path="adoptions" element={<AdoptionRequestsPage />} />
+          <Route path="posts/new" element={<CreatePostPage />} />
+          <Route
+            path="users"
+            element={
+              <RequireRole roles={SUPER_ADMIN_ONLY}>
+                <UsersPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="audit"
+            element={
+              <RequireRole roles={SUPER_ADMIN_ONLY}>
+                <AuditLogPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="invite"
+            element={
+              <RequireRole roles={SUPER_ADMIN_ONLY}>
+                <InviteUserPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="shelter"
+            element={
+              <RequireRole roles={ADMINISTRADOR_ONLY}>
+                <MyShelterPage />
+              </RequireRole>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

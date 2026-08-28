@@ -1,6 +1,6 @@
 namespace KindredPaws.Api.Domain.Notifications;
 
-public enum NotificationType { Like, Comment, Reply, AdoptionStatusChanged, NewPost }
+public enum NotificationType { Like, Comment, Reply, AdoptionStatusChanged, NewPost, AdoptionRequestStatusChanged, NewAdoptionRequest }
 
 public sealed class Notification
 {

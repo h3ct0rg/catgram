@@ -30,19 +30,30 @@ public sealed class AnimalService(
 {
     public async Task<ShelterResponse> CreateShelterAsync(CreateShelterRequest r, CancellationToken ct)
     {
-        var shelter = new Shelter { Name = r.Name.Trim(), Description = r.Description.Trim(), Address = r.Address.Trim(), City = r.City.Trim(), Country = r.Country.Trim(), Phone = r.Phone, WhatsApp = r.WhatsApp, Email = r.Email };
+        var shelter = new Shelter { Name = r.Name.Trim(), Description = r.Description.Trim(), Address = r.Address.Trim(), City = r.City.Trim(), Country = r.Country.Trim(), Phone = r.Phone, WhatsApp = r.WhatsApp, Email = r.Email, Latitude = r.Latitude, Longitude = r.Longitude };
         await shelters.AddAsync(shelter, ct); await shelters.SaveAsync(ct); return ToResponse(shelter);
     }
-    public async Task<IReadOnlyCollection<ShelterResponse>> ListSheltersAsync(CancellationToken ct) => (await shelters.ListAsync(ct)).Select(ToResponse).ToArray();
-    public async Task<AnimalResponse> CreateAsync(CreateAnimalRequest r, CancellationToken ct)
+    public async Task<IReadOnlyCollection<ShelterResponse>> ListSheltersAsync(string? name, CancellationToken ct) => (await shelters.ListAsync(name, ct)).Select(ToResponse).ToArray();
+    public async Task<ShelterResponse> UpdateShelterAsync(Guid shelterId, UpdateShelterRequest r, CancellationToken ct)
     {
-        var shelter = await shelters.GetAsync(r.ShelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado.");
+        var shelter = await shelters.GetAsync(shelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado.");
+        shelter.Name = r.Name.Trim(); shelter.Description = r.Description.Trim(); shelter.Address = r.Address.Trim(); shelter.City = r.City.Trim(); shelter.Country = r.Country.Trim();
+        shelter.Phone = r.Phone; shelter.WhatsApp = r.WhatsApp; shelter.Email = r.Email; shelter.Latitude = r.Latitude; shelter.Longitude = r.Longitude;
+        await shelters.SaveAsync(ct); return ToResponse(shelter);
+    }
+    public async Task<ShelterResponse> GetShelterAsync(Guid shelterId, CancellationToken ct) =>
+        ToResponse(await shelters.GetAsync(shelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado."));
+    public async Task<AnimalResponse> CreateAsync(CreateAnimalRequest r, Guid? actorShelterId, CancellationToken ct)
+    {
+        var effectiveShelterId = actorShelterId ?? r.ShelterId;
+        var shelter = await shelters.GetAsync(effectiveShelterId, ct) ?? throw new KeyNotFoundException("Refugio no encontrado.");
         var animal = new Animal { ShelterId = shelter.Id, Shelter = shelter, Name = r.Name.Trim(), Species = r.Species, Sex = r.Sex, Size = r.Size, AgeMonths = r.AgeMonths, Breed = r.Breed, Description = r.Description.Trim(), Location = r.Location };
         await animals.AddAsync(animal, ct); await animals.SaveAsync(ct); return await ToResponseAsync(animal, ct);
     }
-    public async Task<AnimalResponse> UpdateAsync(Guid id, UpdateAnimalRequest r, Guid actorUserId, CancellationToken ct)
+    public async Task<AnimalResponse> UpdateAsync(Guid id, UpdateAnimalRequest r, Guid actorUserId, Guid? actorShelterId, CancellationToken ct)
     {
         var animal = await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        EnsureShelterAccess(animal, actorShelterId);
         var previousStatus = animal.AdoptionStatus;
         animal.Name = r.Name.Trim(); animal.Species = r.Species; animal.Sex = r.Sex; animal.Size = r.Size; animal.AgeMonths = r.AgeMonths; animal.Breed = r.Breed; animal.Description = r.Description.Trim(); animal.Location = r.Location; animal.AdoptionStatus = r.AdoptionStatus; animal.UpdatedAt = DateTimeOffset.UtcNow;
         await animals.SaveAsync(ct);
@@ -65,10 +76,59 @@ public sealed class AnimalService(
         }
     }
     public async Task<AnimalResponse> GetAsync(Guid id, CancellationToken ct) => await ToResponseAsync(await animals.GetAsync(id, ct) ?? throw new KeyNotFoundException("Animal no encontrado."), ct);
-    public async Task<IReadOnlyCollection<AnimalResponse>> ListAsync(Guid? shelterId, CancellationToken ct) => (await Task.WhenAll((await animals.ListAsync(shelterId, ct)).Select(x => ToResponseAsync(x, ct)))).ToArray();
-    public async Task<AnimalMediaResponse> AddMediaAsync(Guid animalId, MediaUpload upload, CancellationToken ct)
+    public async Task<IReadOnlyCollection<AnimalResponse>> ListAsync(AnimalSearchFilter filter, CancellationToken ct) => (await Task.WhenAll((await animals.ListAsync(filter, ct)).Select(x => ToResponseAsync(x, ct)))).ToArray();
+
+    public async Task<IReadOnlyCollection<AnimalResponse>> ListNearbyAsync(double latitude, double longitude, double radiusKm, CancellationToken ct)
+    {
+        var sheltersWithCoords = await shelters.ListWithCoordinatesAsync(ct);
+        var nearbyShelterIds = sheltersWithCoords
+            .Where(s => HaversineKm(latitude, longitude, s.Latitude!.Value, s.Longitude!.Value) <= radiusKm)
+            .Select(s => s.Id)
+            .ToHashSet();
+        if (nearbyShelterIds.Count == 0) return [];
+
+        var available = await animals.ListAsync(new AnimalSearchFilter(null, null, null, null, null, null, null, AdoptionStatus.Available), ct);
+        var candidates = available.Where(x => nearbyShelterIds.Contains(x.ShelterId));
+        return await Task.WhenAll(candidates.Select(x => ToResponseAsync(x, ct)));
+    }
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusKm = 6371;
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusKm * c;
+    }
+
+    private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+
+    /// <summary>actorShelterId is null for SuperAdmin (unrestricted); Administradores are confined to their own shelter's animals.</summary>
+    private static void EnsureShelterAccess(Animal animal, Guid? actorShelterId)
+    {
+        if (actorShelterId.HasValue && animal.ShelterId != actorShelterId.Value)
+            throw new UnauthorizedAccessException("No puedes gestionar animales de otro refugio.");
+    }
+
+    public async Task<AnimalResponse> MarkAdoptedAsync(Guid animalId, Guid actorUserId, CancellationToken ct)
     {
         var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        var previousStatus = animal.AdoptionStatus;
+        if (previousStatus != AdoptionStatus.Adopted)
+        {
+            animal.AdoptionStatus = AdoptionStatus.Adopted;
+            animal.UpdatedAt = DateTimeOffset.UtcNow;
+            await animals.SaveAsync(ct);
+            await audit.RecordAsync(actorUserId, AuditAction.AdoptionStatusChanged, "Animal", animalId, $"{previousStatus} -> Adopted (solicitud de adopción completada)", ct);
+            await NotifyAdoptionStatusChangedAsync(animal, previousStatus, ct);
+        }
+        return await ToResponseAsync(animal, ct);
+    }
+    public async Task<AnimalMediaResponse> AddMediaAsync(Guid animalId, MediaUpload upload, Guid? actorShelterId, CancellationToken ct)
+    {
+        var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        EnsureShelterAccess(animal, actorShelterId);
         if (upload.Length <= 0 || upload.Length > 20 * 1024 * 1024 || !new[] { "image/jpeg", "image/png", "image/webp", "video/mp4" }.Contains(upload.ContentType)) throw new ArgumentException("Archivo no permitido o excede 20 MB.");
         using var buffer = new MemoryStream();
         await upload.Content.CopyToAsync(buffer, ct);
@@ -91,9 +151,10 @@ public sealed class AnimalService(
         await thumbnail.Value.Content.DisposeAsync();
         return thumbnailKey;
     }
-    public async Task<AnimalStatsResponse> GetStatsAsync(Guid animalId, CancellationToken ct)
+    public async Task<AnimalStatsResponse> GetStatsAsync(Guid animalId, Guid? actorShelterId, CancellationToken ct)
     {
         var animal = await animals.GetAsync(animalId, ct) ?? throw new KeyNotFoundException("Animal no encontrado.");
+        EnsureShelterAccess(animal, actorShelterId);
         var (postCount, totalViews, totalShares, postIds) = await posts.GetAnimalPostStatsAsync(animalId, ct);
         var totalLikes = postIds.Count == 0 ? 0 : (await likes.CountManyAsync(postIds, ct)).Values.Sum();
         var totalComments = postIds.Count == 0 ? 0 : (await comments.CountManyAsync(postIds, ct)).Values.Sum();
@@ -101,7 +162,7 @@ public sealed class AnimalService(
         return new AnimalStatsResponse(animal.Id, animal.Name, animal.AdoptionStatus, postCount, totalLikes, totalComments, totalViews, totalShares, followerCount);
     }
 
-    private static ShelterResponse ToResponse(Shelter x) => new(x.Id, x.Name, x.Description, x.Address, x.City, x.Country, x.Phone, x.WhatsApp, x.Email, x.Animals.Count);
+    private static ShelterResponse ToResponse(Shelter x) => new(x.Id, x.Name, x.Description, x.Address, x.City, x.Country, x.Phone, x.WhatsApp, x.Email, x.Latitude, x.Longitude, x.Animals.Count);
     private async Task<AnimalMediaResponse> ToMediaResponseAsync(AnimalMedia m, CancellationToken ct) => new(m.Id, await mediaStorage.GetUrlAsync(m.ObjectKey, ct), m.ThumbnailObjectKey is null ? null : await mediaStorage.GetUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
     private async Task<AnimalResponse> ToResponseAsync(Animal x, CancellationToken ct) => new(x.Id, x.ShelterId, x.Shelter?.Name ?? "", x.Name, x.Species, x.Sex, x.Size, x.AgeMonths, x.Breed, x.Description, x.AdoptionStatus, x.Location, (await Task.WhenAll(x.Media.Select(m => ToMediaResponseAsync(m, ct)))).ToArray());
 }

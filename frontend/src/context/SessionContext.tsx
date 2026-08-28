@@ -6,6 +6,7 @@ const CLAIM_ROLE = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role
 
 type TokenClaims = {
   sub?: string
+  shelter_id?: string
   [CLAIM_NAME]?: string
   [CLAIM_ROLE]?: string | string[]
 }
@@ -15,6 +16,7 @@ type SessionState = {
   userId: string | null
   userName: string | null
   roles: string[]
+  shelterId: string | null
   login: (accessToken: string) => void
   logout: () => void
 }
@@ -49,6 +51,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       userId: claims?.sub ?? null,
       userName: claims?.[CLAIM_NAME] ?? null,
       roles,
+      shelterId: claims?.shelter_id ?? null,
       login: (accessToken: string) => {
         setAccessToken(accessToken)
         setToken(accessToken)

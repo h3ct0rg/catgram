@@ -1,4 +1,5 @@
-import { Animal, AuthResponse, Paginated, Post, Story } from '../types/domain'
+import { Animal, AuthResponse, Paginated, Post, Shelter, Story } from '../types/domain'
+import { AdoptionRequest, AdoptionRequestStatus } from '../types/adoption'
 import {
   Comment,
   FollowSummary,
@@ -16,6 +17,7 @@ import {
   AuditLogEntry,
   DashboardSummary,
   ReportStatus,
+  ShelterDashboardSummary,
 } from '../types/admin'
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5080'
@@ -35,7 +37,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAccessToken()
   const headers = new Headers(options.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  // Only force JSON for string bodies — a FormData body (multipart uploads) must keep the
+  // browser-generated Content-Type (with its boundary), so leave it untouched here.
+  if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
 
   const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers })
 
@@ -274,6 +280,174 @@ export function getDashboardSummary(): Promise<DashboardSummary> {
   return request<DashboardSummary>('/api/v1/dashboard/summary')
 }
 
+export function getShelterDashboardSummary(): Promise<ShelterDashboardSummary> {
+  return request<ShelterDashboardSummary>('/api/v1/dashboard/my-shelter')
+}
+
 export function getAnimalStats(animalId: string): Promise<AnimalStats> {
   return request<AnimalStats>(`/api/v1/animals/${animalId}/stats`)
+}
+
+// --- Admin: invitations (SuperAdmin only) ---
+
+export type CreateInvitationInput = {
+  email: string
+  fullName: string
+  role: string
+  shelterId?: string
+  newShelterName?: string
+}
+
+export type Invitation = {
+  id: string
+  email: string
+  fullName: string
+  role: string
+  shelterId: string | null
+  shelterName: string | null
+  newShelterName: string | null
+  expiresAt: string
+  status: 'Pendiente' | 'Aceptada' | 'Expirada'
+}
+
+export function createInvitation(input: CreateInvitationInput): Promise<Invitation> {
+  return request<Invitation>('/api/v1/invitations', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: input.email,
+      fullName: input.fullName,
+      role: input.role,
+      shelterId: input.shelterId ?? null,
+      newShelterName: input.newShelterName ?? null,
+    }),
+  })
+}
+
+export function getInvitations(): Promise<Invitation[]> {
+  return request<Invitation[]>('/api/v1/invitations')
+}
+
+export async function revokeInvitation(id: string): Promise<void> {
+  await request<void>(`/api/v1/invitations/${id}`, { method: 'DELETE' })
+}
+
+export function resendInvitation(id: string): Promise<Invitation> {
+  return request<Invitation>(`/api/v1/invitations/${id}/resend`, { method: 'POST' })
+}
+
+// --- My shelter (Administrador only) ---
+
+export function getMyShelter(): Promise<Shelter> {
+  return request<Shelter>('/api/v1/shelters/mine')
+}
+
+export type UpdateShelterInput = {
+  name: string
+  description: string
+  address: string
+  city: string
+  country: string
+  phone?: string
+  whatsApp?: string
+  email?: string
+  latitude?: number
+  longitude?: number
+}
+
+export function updateMyShelter(input: UpdateShelterInput): Promise<Shelter> {
+  return request<Shelter>('/api/v1/shelters/mine', { method: 'PUT', body: JSON.stringify(input) })
+}
+
+// --- Discovery: search, filters, geolocation ---
+
+export type AnimalSearchParams = {
+  shelterId?: string
+  name?: string
+  species?: string
+  sex?: string
+  size?: string
+  breed?: string
+  location?: string
+  adoptionStatus?: string
+}
+
+export function getAnimals(params: AnimalSearchParams = {}): Promise<Animal[]> {
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.set(key, value)
+  })
+  const qs = query.toString()
+  return request<Animal[]>(`/api/v1/animals${qs ? `?${qs}` : ''}`)
+}
+
+export function getNearbyAnimals(lat: number, lng: number, radiusKm = 25): Promise<Animal[]> {
+  return request<Animal[]>(`/api/v1/animals/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`)
+}
+
+export function getShelters(name?: string): Promise<Shelter[]> {
+  const query = name ? `?name=${encodeURIComponent(name)}` : ''
+  return request<Shelter[]>(`/api/v1/shelters${query}`)
+}
+
+// --- Adoption requests ---
+
+export function createAdoptionRequest(
+  animalId: string,
+  answers: Record<string, string>,
+): Promise<AdoptionRequest> {
+  return request<AdoptionRequest>(`/api/v1/animals/${animalId}/adoption-requests`, {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  })
+}
+
+export function getMyAdoptionRequests(): Promise<AdoptionRequest[]> {
+  return request<AdoptionRequest[]>('/api/v1/adoption-requests/mine')
+}
+
+export function getAdoptionRequests(
+  params: { status?: AdoptionRequestStatus; animalId?: string } = {},
+): Promise<AdoptionRequest[]> {
+  const query = new URLSearchParams()
+  if (params.status) query.set('status', params.status)
+  if (params.animalId) query.set('animalId', params.animalId)
+  const qs = query.toString()
+  return request<AdoptionRequest[]>(`/api/v1/adoption-requests${qs ? `?${qs}` : ''}`)
+}
+
+export function updateAdoptionRequestStatus(
+  id: string,
+  status: AdoptionRequestStatus,
+  reviewNotes?: string,
+): Promise<AdoptionRequest> {
+  return request<AdoptionRequest>(`/api/v1/adoption-requests/${id}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status, reviewNotes: reviewNotes ?? null }),
+  })
+}
+
+// --- Post creation (admin) ---
+
+export type CreatePostInput = {
+  shelterId: string
+  animalId: string
+  caption: string
+  location?: string
+  hashtags?: string
+  isFeatured?: boolean
+  isSuccessStory?: boolean
+  files: File[]
+}
+
+export function createPost(data: CreatePostInput): Promise<Post> {
+  const form = new FormData()
+  form.set('ShelterId', data.shelterId)
+  form.set('AnimalId', data.animalId)
+  form.set('Caption', data.caption)
+  if (data.location) form.set('Location', data.location)
+  if (data.hashtags) form.set('Hashtags', data.hashtags)
+  form.set('IsFeatured', String(data.isFeatured ?? false))
+  form.set('IsSuccessStory', String(data.isSuccessStory ?? false))
+  data.files.forEach((file) => form.append('files', file))
+  return request<Post>('/api/v1/social/posts', { method: 'POST', body: form })
 }

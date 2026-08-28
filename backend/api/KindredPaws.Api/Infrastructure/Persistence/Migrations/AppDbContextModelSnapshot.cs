@@ -22,6 +22,46 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("KindredPaws.Api.Domain.Adoption.AdoptionRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AnimalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ApplicantUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicantUserId");
+
+                    b.HasIndex("AnimalId", "Status");
+
+                    b.ToTable("AdoptionRequests");
+                });
+
             modelBuilder.Entity("KindredPaws.Api.Domain.Animals.Animal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -68,6 +108,14 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("Sex");
+
+                    b.HasIndex("Size");
+
+                    b.HasIndex("Species");
 
                     b.HasIndex("ShelterId", "AdoptionStatus");
 
@@ -233,6 +281,9 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ShelterId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -248,6 +299,8 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("ShelterId");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -276,13 +329,16 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("NewShelterName")
+                        .HasColumnType("text");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
-                    b.Property<string>("ShelterId")
-                        .HasColumnType("text");
+                    b.Property<Guid?>("ShelterId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -295,6 +351,8 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ShelterId");
 
                     b.HasIndex("TokenHash")
                         .IsUnique();
@@ -434,8 +492,14 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("LogoObjectKey")
                         .HasColumnType("text");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -449,6 +513,8 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name");
 
                     b.ToTable("Shelters");
                 });
@@ -542,6 +608,9 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsFeatured")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsSuccessStory")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Location")
                         .HasColumnType("text");
 
@@ -561,6 +630,8 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsSuccessStory");
 
                     b.HasIndex("Visibility", "CreatedAt");
 
@@ -809,6 +880,22 @@ namespace KindredPaws.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Animal");
+                });
+
+            modelBuilder.Entity("KindredPaws.Api.Domain.Identity.ApplicationUser", b =>
+                {
+                    b.HasOne("KindredPaws.Api.Domain.Shelters.Shelter", null)
+                        .WithMany()
+                        .HasForeignKey("ShelterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("KindredPaws.Api.Domain.Identity.Invitation", b =>
+                {
+                    b.HasOne("KindredPaws.Api.Domain.Shelters.Shelter", null)
+                        .WithMany()
+                        .HasForeignKey("ShelterId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("KindredPaws.Api.Domain.Social.Comment", b =>

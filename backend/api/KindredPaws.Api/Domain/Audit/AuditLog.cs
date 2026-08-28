@@ -1,6 +1,6 @@
 namespace KindredPaws.Api.Domain.Audit;
 
-public enum AuditAction { UserActivated, UserDeactivated, UserRoleChanged, PostHidden, CommentHidden, AdoptionStatusChanged, ReportResolved }
+public enum AuditAction { UserActivated, UserDeactivated, UserRoleChanged, PostHidden, CommentHidden, AdoptionStatusChanged, ReportResolved, AdoptionRequestReviewed }
 
 public sealed class AuditLog
 {

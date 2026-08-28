@@ -200,23 +200,48 @@ El requisito de recuperación de contraseña del resumen debe tratarse como **fu
 
 ### Fase 6 — Descubrimiento y adopción
 
-**Estado:** [ ] No implementada  
+**Estado:** [x] Implementada técnicamente; pendiente de validación del usuario y de pruebas contra infraestructura real
 **Historias:** US-080 a US-083 y US-140 a US-151.
 
 **Entregables**
 
-- [ ] Búsqueda por nombre de animal/refugio y filtros por especie, sexo, edad, tamaño, raza, ubicación y estado.
-- [ ] Índices PostgreSQL y, si el volumen lo justifica, búsqueda dedicada.
-- [ ] “Animales cerca de mí” con geolocalización opcional y consentimiento.
-- [ ] Solicitud de adopción, formulario configurable y estados de revisión.
-- [ ] Registro de adopción y cambio automático a Adoptado.
-- [ ] Historias de éxito “final feliz”.
+- [x] Búsqueda por nombre de animal/refugio y filtros por especie, sexo, tamaño, raza, ubicación y estado (`GET /api/v1/animals?name=&species=&sex=&size=&breed=&location=&adoptionStatus=`, `GET /api/v1/shelters?name=`), con UI pública en `/search`. Filtro por edad no incluido (el dato es `ageMonths` libre, no un rango discreto útil para filtrar; se puede agregar como rango si se necesita).
+- [x] Índices PostgreSQL en `Animal.Name/Species/Sex/Size` y `Shelter.Name`; los filtros de texto usan `ILIKE` (case-insensitive). No se introdujo búsqueda dedicada (Elasticsearch/Meilisearch) — el volumen actual no lo justifica; si crece, `pg_trgm` es el siguiente paso natural antes de una búsqueda externa.
+- [x] "Animales cerca de mí" (`GET /api/v1/animals/nearby?lat=&lng=&radiusKm=`) calculado con fórmula de Haversine en el backend sobre refugios con coordenadas (`Shelter.Latitude/Longitude`, nuevos). El consentimiento de ubicación lo maneja el navegador (prompt nativo de `navigator.geolocation`); si un refugio no tiene coordenadas cargadas, sus animales no aparecen en esta búsqueda.
+- [x] Solicitud de adopción con estados de revisión completos (`Pending → InReview → Approved/Rejected → Completed`): nueva entidad `AdoptionRequest`, creación por el usuario (`POST /api/v1/animals/{id}/adoption-requests`), bandeja de revisión admin (`GET/POST /api/v1/adoption-requests`, UI en `/admin/adoptions`) y consulta de las propias solicitudes (`GET /api/v1/adoption-requests/mine`). El "formulario configurable" se implementó como respuestas libres clave-valor (`Dictionary<string,string>` serializado), no como un editor visual de preguntas por refugio — permite preguntas distintas sin migración, pero no hay UI de administración para definir el cuestionario; el frontend usa un set fijo inspirado en el resumen (vivienda, patio, otros animales, niños, experiencia).
+- [x] Registro de adopción y cambio automático a Adoptado: al marcar una solicitud como `Completed`, se reutiliza el mismo pipeline de cambio de estado de adopción de Fase 2/4 (`IAnimalService.MarkAdoptedAsync`), lo que dispara notificación a seguidores, evento de RabbitMQ y auditoría, además de notificar al solicitante.
+- [x] Historias de éxito "final feliz": se agregó `Post.IsSuccessStory` y el filtro `successStoriesOnly` en el feed (`GET /api/v1/social/feed?successStoriesOnly=true`). Esto también cerró un hueco real de Fase 3: no existía ninguna UI para crear publicaciones (solo el endpoint); se agregó `/admin/posts/new` con selector de animal, subida de archivos y el checkbox de historia de éxito.
 
 **Criterios de salida**
 
-- Un visitante encuentra animales disponibles con filtros combinables.
-- Un refugio puede revisar una solicitud de adopción sin modificar datos directamente.
-- Una adopción queda vinculada al animal y se refleja en el feed/historia.
+- Un visitante encuentra animales disponibles con filtros combinables (`/search`, incluida la búsqueda por cercanía).
+- Un refugio puede revisar una solicitud de adopción sin modificar datos directamente (bandeja `/admin/adoptions` con transiciones de estado y notas, sin editar la solicitud misma).
+- Una adopción queda vinculada al animal y se refleja en el feed/historia (el animal pasa a `Adoptado`, genera el mismo evento/notificación que cualquier cambio de estado, y puede publicarse como historia de éxito desde `/admin/posts/new`).
+
+**Pendiente de verificación:** igual que las fases anteriores, validado por compilación y migraciones (`dotnet build`, `dotnet ef migrations add DiscoveryAndAdoption`, `tsc -b`, `vite build`) sin infraestructura real disponible en este entorno. La búsqueda "cerca de mí" no se puede probar de extremo a extremo sin refugios con coordenadas reales cargadas.
+
+### Corrección post-Fase 6 — Modelo de tenant por refugio
+
+El diseño original permitía que cualquier Administrador gestionara animales, publicaciones e historias de **cualquier** refugio, sin relación entre un Administrador y "su" refugio. El usuario corrigió el modelo: el SuperAdministrador es dueño de la plataforma completa (dashboard global, invitaciones, auditoría); cada Administrador queda ligado a un refugio (su "tenant") y solo puede operar dentro de él. Un mismo refugio puede tener varios Administradores.
+
+**Cambios de dominio:**
+- `ApplicationUser.ShelterId` (nuevo, nullable): el refugio que administra ese usuario. Varios usuarios pueden compartir el mismo `ShelterId`.
+- `Invitation.ShelterId`/`NewShelterName` (nuevo): al invitar a un Administrador, el SuperAdmin indica si se une a un refugio **existente** (`ShelterId`) o si se crea uno **nuevo** (`NewShelterName`) — exactamente uno de los dos.
+- Al aceptar la invitación por Google (primer login), si el rol es Administrador: se crea el refugio nuevo (si aplica) y se asigna `ShelterId` al usuario, una sola vez.
+- El JWT ahora incluye el claim `shelter_id` cuando el usuario administra un refugio; todos los endpoints de gestión de contenido lo leen para acotar el alcance sin depender de una consulta extra a la base de datos.
+
+**Aislamiento aplicado (`shelter_id` del token, `null` = SuperAdmin sin restricción):**
+- Crear/editar animales, subir medios (`AnimalsController`), crear/editar/ocultar publicaciones e historias (`SocialController`): un Administrador solo puede operar sobre su propio refugio; el `ShelterId` que envíe el cliente se ignora y se reemplaza por el del token.
+- Bandeja de solicitudes de adopción (`GET/POST /api/v1/adoption-requests`): un Administrador solo ve y resuelve solicitudes de animales de su refugio.
+- Dashboard: `GET /api/v1/dashboard/summary` (global, con desglose de animales por refugio y top de animales por likes/compartidos) quedó exclusivo de SuperAdministrador; nuevo `GET /api/v1/dashboard/my-shelter` (solo Administrador) muestra las mismas métricas acotadas a su refugio, incluyendo solicitudes de adopción pendientes.
+- Nuevo `GET/PUT /api/v1/shelters/mine`: el Administrador completa los datos de su refugio (dirección, contacto, coordenadas) después de la creación automática, que arranca con esos campos vacíos.
+- **Reportes, usuarios y auditoría global siguen sin acotar por refugio** (un Administrador ve las mismas bandejas que hoy); es una simplificación consciente, no un objetivo de esta corrección.
+
+**Notificación al refugio cuando alguien solicita adopción:** al crear una solicitud (`AdoptionService.CreateAsync`), se notifica (in-app + evento `NewAdoptionRequestEvent` → correo vía el worker) a **todos** los Administradores del refugio del animal, no solo a uno — consistente con que un refugio puede tener varios Administradores.
+
+**Frontend:** `SessionContext` decodifica el claim `shelter_id`; el panel admin ahora oculta pestañas según el rol (Usuarios/Auditoría/Invitar solo SuperAdmin; Mi refugio solo Administrador); nuevas pantallas `/admin/invite` (invitar con selección de refugio existente o nuevo) y `/admin/shelter` (editar los datos del propio refugio); `/admin/posts/new` filtra el selector de animales al refugio del Administrador.
+
+**Migración:** `ShelterTenancy` (agrega `ApplicationUser.ShelterId`, cambia `Invitation.ShelterId` de `string` a `Guid` y agrega `Invitation.NewShelterName`; el cambio de tipo genera una advertencia de posible pérdida de datos, aceptable porque ese campo nunca se usaba realmente antes de esta corrección).
 
 ### Fase 7 — Calidad, rendimiento y operación
 

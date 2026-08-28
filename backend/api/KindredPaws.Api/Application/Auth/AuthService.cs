@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using KindredPaws.Api.Domain.Identity;
+using KindredPaws.Api.Domain.Shelters;
 using KindredPaws.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -14,6 +15,7 @@ namespace KindredPaws.Api.Application.Auth;
 public sealed class AuthService(
     UserManager<ApplicationUser> userManager,
     IInvitationRepository invitations,
+    ShelterRepository shelters,
     IOptions<JwtOptions> jwtOptions) : IAuthService
 {
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
@@ -52,6 +54,23 @@ public sealed class AuthService(
 
         await userManager.AddLoginAsync(user, new UserLoginInfo("Google", request.GoogleSubject, "Google"));
         await userManager.AddToRoleAsync(user, invitation.Role);
+
+        if (invitation.Role == Roles.Administrator && user.ShelterId is null)
+        {
+            if (invitation.ShelterId.HasValue)
+            {
+                user.ShelterId = invitation.ShelterId;
+            }
+            else if (!string.IsNullOrWhiteSpace(invitation.NewShelterName))
+            {
+                var shelter = new Shelter { Name = invitation.NewShelterName, Description = "", Address = "", City = "", Country = "" };
+                await shelters.AddAsync(shelter, cancellationToken);
+                await shelters.SaveAsync(cancellationToken);
+                user.ShelterId = shelter.Id;
+            }
+            await userManager.UpdateAsync(user);
+        }
+
         invitation.UsedAt = DateTimeOffset.UtcNow;
         invitation.UsedByUserId = user.Id;
         await invitations.SaveChangesAsync(cancellationToken);
@@ -76,9 +95,10 @@ public sealed class AuthService(
             new(ClaimTypes.Email, user.Email ?? string.Empty)
         };
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        if (user.ShelterId.HasValue) claims.Add(new Claim("shelter_id", user.ShelterId.Value.ToString()));
         var credentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Value.Key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(issuer: jwtOptions.Value.Issuer, claims: claims, expires: expires.UtcDateTime, signingCredentials: credentials);
-        return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, user.UserName!, [.. roles], user.MustChangePassword);
+        return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, user.UserName!, [.. roles], user.ShelterId, user.MustChangePassword);
     }
 
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

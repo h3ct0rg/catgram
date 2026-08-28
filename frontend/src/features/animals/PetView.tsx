@@ -10,6 +10,7 @@ import {
   adoptionStatusLabel,
 } from '../../utils/adoptionStatus'
 import { ShareSheet } from '../feed/ShareSheet'
+import { AdoptionRequestModal } from '../adoption/AdoptionRequestModal'
 import { FollowButton } from './FollowButton'
 
 const ADMIN_ROLES = ['Administrador', 'SuperAdministrador']
@@ -23,6 +24,7 @@ export function PetView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showShare, setShowShare] = useState(false)
+  const [showAdoptionRequest, setShowAdoptionRequest] = useState(false)
   const isAdmin = session.roles.some((role) => ADMIN_ROLES.includes(role))
 
   useEffect(() => {
@@ -169,7 +171,12 @@ export function PetView() {
           {animal.location ? ` · ${animal.location}` : ''}
         </p>
       </div>
-      <button className="primary-button adopt-button" onClick={() => navigate('/login')}>
+      <button
+        className="primary-button adopt-button"
+        onClick={() =>
+          session.isAuthenticated ? setShowAdoptionRequest(true) : navigate('/login')
+        }
+      >
         ♡ &nbsp;Adoptar a {animal.name}
       </button>
 
@@ -179,6 +186,13 @@ export function PetView() {
           title={animal.name}
           text={`Ayuda a ${animal.name} a encontrar un hogar`}
           onClose={() => setShowShare(false)}
+        />
+      )}
+      {showAdoptionRequest && (
+        <AdoptionRequestModal
+          animalId={animal.id}
+          animalName={animal.name}
+          onClose={() => setShowAdoptionRequest(false)}
         />
       )}
     </main>

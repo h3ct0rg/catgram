@@ -2,7 +2,7 @@ using KindredPaws.Api.Application.Animals;
 
 namespace KindredPaws.Api.Application.Social;
 
-public sealed record CreatePostRequest(Guid ShelterId, Guid AnimalId, string Caption, string? Location, string? Hashtags, bool IsFeatured);
+public sealed record CreatePostRequest(Guid ShelterId, Guid AnimalId, string Caption, string? Location, string? Hashtags, bool IsFeatured, bool IsSuccessStory = false);
 public sealed record UpdatePostRequest(string Caption, string? Location, string? Hashtags, bool IsFeatured);
 public sealed record CreateStoryRequest(Guid ShelterId, Guid AnimalId, string Caption);
 public sealed record PostResponse(
@@ -16,6 +16,7 @@ public sealed record PostResponse(
     string? Location,
     string? Hashtags,
     bool IsFeatured,
+    bool IsSuccessStory,
     DateTimeOffset CreatedAt,
     int LikeCount,
     int CommentCount,

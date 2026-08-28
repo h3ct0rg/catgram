@@ -41,6 +41,22 @@ export type AuditLogEntry = {
   createdAt: string
 }
 
+export type ShelterBreakdownItem = {
+  shelterId: string
+  shelterName: string
+  animalCount: number
+  adoptedCount: number
+}
+
+export type AnimalEngagementItem = {
+  animalId: string
+  animalName: string
+  shelterName: string
+  likes: number
+  shares: number
+  views: number
+}
+
 export type DashboardSummary = {
   users: number
   shelters: number
@@ -52,6 +68,19 @@ export type DashboardSummary = {
   comments: number
   shares: number
   views: number
+  sheltersBreakdown: ShelterBreakdownItem[]
+  topAnimals: AnimalEngagementItem[]
+}
+
+export type ShelterDashboardSummary = {
+  animals: number
+  adoptedAnimals: number
+  posts: number
+  likes: number
+  comments: number
+  shares: number
+  views: number
+  pendingAdoptionRequests: number
 }
 
 export type AnimalStats = {

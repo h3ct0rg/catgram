@@ -12,6 +12,8 @@ public sealed class Shelter
     public string? Phone { get; set; }
     public string? WhatsApp { get; set; }
     public string? Email { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public ICollection<KindredPaws.Api.Domain.Animals.Animal> Animals { get; set; } = [];
 }

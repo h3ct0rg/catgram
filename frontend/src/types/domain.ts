@@ -17,6 +17,7 @@ export type Post = {
   location: string | null
   hashtags: string | null
   isFeatured: boolean
+  isSuccessStory: boolean
   createdAt: string
   likeCount: number
   commentCount: number
@@ -51,6 +52,21 @@ export type Animal = {
   adoptionStatus: string
   location: string | null
   media: AnimalMedia[]
+}
+
+export type Shelter = {
+  id: string
+  name: string
+  description: string
+  address: string
+  city: string
+  country: string
+  phone: string | null
+  whatsApp: string | null
+  email: string | null
+  latitude: number | null
+  longitude: number | null
+  animalCount: number
 }
 
 export type Paginated<T> = {

@@ -13,6 +13,7 @@ public sealed class Post
     public string? Hashtags { get; set; }
     public ContentVisibility Visibility { get; set; } = ContentVisibility.Published;
     public bool IsFeatured { get; set; }
+    public bool IsSuccessStory { get; set; }
     public int ViewCount { get; set; }
     public int ShareCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

@@ -1,7 +1,11 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useSession } from '../../context/SessionContext'
 
 export function AdminLayout() {
   const navigate = useNavigate()
+  const session = useSession()
+  const isSuperAdmin = session.roles.includes('SuperAdministrador')
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -16,8 +20,12 @@ export function AdminLayout() {
             Dashboard
           </NavLink>
           <NavLink to="/admin/reports">Reportes</NavLink>
-          <NavLink to="/admin/users">Usuarios</NavLink>
-          <NavLink to="/admin/audit">Auditoría</NavLink>
+          <NavLink to="/admin/adoptions">Solicitudes</NavLink>
+          <NavLink to="/admin/posts/new">Publicar</NavLink>
+          {isSuperAdmin && <NavLink to="/admin/users">Usuarios</NavLink>}
+          {isSuperAdmin && <NavLink to="/admin/audit">Auditoría</NavLink>}
+          {isSuperAdmin && <NavLink to="/admin/invite">Invitar</NavLink>}
+          {!isSuperAdmin && <NavLink to="/admin/shelter">Mi refugio</NavLink>}
         </nav>
         <Outlet />
       </main>
