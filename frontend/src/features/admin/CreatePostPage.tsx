@@ -1,8 +1,11 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
 import { createPost, getAnimals } from '../../services/apiClient'
 import { Animal } from '../../types/domain'
+
+const MAX_PHOTOS = 10
+const MAX_VIDEOS = 4
 
 export function CreatePostPage() {
   const navigate = useNavigate()
@@ -17,6 +20,9 @@ export function CreatePostPage() {
   const [isSuccessStory, setIsSuccessStory] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
+  const previewsRef = useRef<string[]>([])
+  previewsRef.current = previews
+  const [fileError, setFileError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
@@ -28,12 +34,41 @@ export function CreatePostPage() {
       .finally(() => setLoadingAnimals(false))
   }, [session.shelterId])
 
+  useEffect(() => () => previewsRef.current.forEach((url) => URL.revokeObjectURL(url)), [])
+
   function handleFilesChange(event: ChangeEvent<HTMLInputElement>) {
-    previews.forEach((url) => URL.revokeObjectURL(url))
-    const selected = Array.from(event.target.files ?? [])
-    setFiles(selected)
-    setPreviews(selected.map((file) => URL.createObjectURL(file)))
+    const incoming = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (incoming.length === 0) return
+
+    const next = [...files, ...incoming]
+    const photoCount = next.filter((file) => file.type.startsWith('image/')).length
+    const videoCount = next.filter((file) => file.type.startsWith('video/')).length
+
+    if (photoCount > MAX_PHOTOS) {
+      setFileError(`Puedes agregar hasta ${MAX_PHOTOS} fotos.`)
+      return
+    }
+    if (videoCount > MAX_VIDEOS) {
+      setFileError(`Puedes agregar hasta ${MAX_VIDEOS} videos.`)
+      return
+    }
+    setFileError('')
+    setFiles(next)
+    setPreviews((current) => [
+      ...current,
+      ...incoming.map((file) => URL.createObjectURL(file)),
+    ])
   }
+
+  function removeFile(index: number) {
+    URL.revokeObjectURL(previews[index])
+    setFiles((current) => current.filter((_, i) => i !== index))
+    setPreviews((current) => current.filter((_, i) => i !== index))
+  }
+
+  const photoCount = files.filter((file) => file.type.startsWith('image/')).length
+  const videoCount = files.length - photoCount
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -127,10 +162,10 @@ export function CreatePostPage() {
           )}
 
           <div className="upload-field">
-            <span className="field-label">Fotos/video</span>
+            <span className="field-label">Fotos y videos</span>
             <label htmlFor="post-media" className="upload-box">
               ＋<strong>Agregar fotos o video</strong>
-              <small>JPG, PNG, WEBP o MP4</small>
+              <small>Hasta {MAX_PHOTOS} fotos y {MAX_VIDEOS} videos · JPG, PNG, WEBP o MP4</small>
             </label>
             <input
               id="post-media"
@@ -141,17 +176,37 @@ export function CreatePostPage() {
               onChange={handleFilesChange}
             />
             {files.length > 0 && (
-              <div className="gallery media-preview-grid">
-                {files.map((file, index) =>
-                  file.type.startsWith('image/') ? (
-                    <img key={index} src={previews[index]} alt={file.name} />
-                  ) : (
-                    <div key={index} className="video-chip">
-                      🎬<span>{file.name}</span>
+              <>
+                <small className="media-count">
+                  {photoCount}/{MAX_PHOTOS} fotos · {videoCount}/{MAX_VIDEOS} videos
+                </small>
+                <div className="gallery media-preview-grid">
+                  {files.map((file, index) => (
+                    <div className="media-item" key={index}>
+                      {file.type.startsWith('image/') ? (
+                        <img src={previews[index]} alt={file.name} />
+                      ) : (
+                        <div className="video-chip">
+                          🎬<span>{file.name}</span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="media-remove"
+                        aria-label={`Quitar ${file.name}`}
+                        onClick={() => removeFile(index)}
+                      >
+                        ✕
+                      </button>
                     </div>
-                  ),
-                )}
-              </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {fileError && (
+              <p className="feedback" role="status">
+                {fileError}
+              </p>
             )}
           </div>
 

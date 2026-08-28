@@ -9,6 +9,7 @@ import {
   adoptionStatusLabel,
 } from '../../utils/adoptionStatus'
 import { formatRelativeTime } from '../../utils/formatRelativeTime'
+import { MediaCarousel } from '../../components/media/MediaCarousel'
 import { ReportModal } from '../social/ReportModal'
 import { CommentSheet } from './CommentSheet'
 import { ShareSheet } from './ShareSheet'
@@ -27,9 +28,7 @@ export function PostCard({ post }: Props) {
   const [showReport, setShowReport] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
 
-  const primaryMedia = post.media.find((media) => media.isPrimary) ?? post.media[0]
   const shareUrl = `${apiBaseUrl}/p/${post.id}`
-
   async function toggleLike() {
     if (!session.isAuthenticated) {
       navigate('/login')
@@ -87,14 +86,16 @@ export function PostCard({ post }: Props) {
           </div>
         )}
       </div>
-      <button className="post-image-wrap image-button" onClick={() => navigate(`/p/${post.id}`)}>
-        {primaryMedia && (
-          <img src={primaryMedia.url} alt={`${post.animalName}, disponible para adopción`} />
-        )}
+      <div className="post-media">
+        <MediaCarousel
+          media={post.media}
+          className="post-image-wrap"
+          onOpen={() => navigate(`/p/${post.id}`)}
+        />
         <span className="status" style={{ background: adoptionStatusColor(post.adoptionStatus) }}>
           {adoptionStatusIcon(post.adoptionStatus)} {adoptionStatusLabel(post.adoptionStatus)}
         </span>
-      </button>
+      </div>
       <div className="post-actions">
         <button onClick={toggleLike} className={liked ? 'liked' : ''} aria-pressed={liked}>
           {liked ? '♥' : '♡'} <span>{likeCount}</span>

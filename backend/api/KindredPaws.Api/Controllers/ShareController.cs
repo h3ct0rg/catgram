@@ -10,7 +10,7 @@ namespace KindredPaws.Api.Controllers;
 [ApiController]
 [Route("p")]
 [AllowAnonymous]
-public sealed class ShareController(SocialRepository posts, AnimalRepository animals, IMediaStorage storage, IConfiguration configuration) : ControllerBase
+public sealed class ShareController(SocialRepository posts, AnimalRepository animals, IMinioService minioService, IConfiguration configuration) : ControllerBase
 {
     [HttpGet("{id:guid}")]
     public async Task<ContentResult> Get(Guid id, CancellationToken ct)
@@ -22,7 +22,7 @@ public sealed class ShareController(SocialRepository posts, AnimalRepository ani
 
         var animal = await animals.GetAsync(post.AnimalId, ct);
         var primaryMedia = post.Media.FirstOrDefault(x => x.IsPrimary) ?? post.Media.FirstOrDefault();
-        var imageUrl = primaryMedia is null ? null : await storage.GetUrlAsync(primaryMedia.ObjectKey, primaryMedia.ContentType, ct);
+        var imageUrl = primaryMedia is null ? null : await minioService.GetImageUrlAsync(primaryMedia.ObjectKey, primaryMedia.ContentType, ct);
         var title = animal is null ? "Kindred Paws" : $"{animal.Name} — {animal.Shelter?.Name ?? "Kindred Paws"}";
         var description = string.IsNullOrWhiteSpace(post.Caption) ? "Ayuda a encontrarle un hogar." : post.Caption;
 

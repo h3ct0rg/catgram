@@ -6,19 +6,28 @@ namespace KindredPaws.Api.Controllers;
 
 /// <summary>
 /// Streams media objects from MinIO on the client's behalf — MinIO itself is never exposed to the
-/// browser (its host/port may not even be reachable from client networks). See MinioMediaStorage.
+/// browser (its host/port may not even be reachable from client networks). Two dedicated endpoints serve
+/// the original object (/image) and its thumbnail (/thumbnail). See MinioService.
 /// </summary>
 [ApiController]
 [Route("api/v1/media")]
-public sealed class MediaController(IMediaStorage mediaStorage, ILogger<MediaController> logger) : ControllerBase
+public sealed class MediaController(IMinioService minioService, ILogger<MediaController> logger) : ControllerBase
 {
-    [HttpGet("{**key}")]
+    [HttpGet("image/{**key}")]
     [AllowAnonymous]
-    public async Task<IActionResult> Get(string key, [FromQuery] string? type, CancellationToken cancellationToken)
+    public Task<IActionResult> GetImage(string key, [FromQuery] string? type, CancellationToken cancellationToken) =>
+        ServeAsync(key, type, cancellationToken);
+
+    [HttpGet("thumbnail/{**key}")]
+    [AllowAnonymous]
+    public Task<IActionResult> GetThumbnail(string key, [FromQuery] string? type, CancellationToken cancellationToken) =>
+        ServeAsync(key, type, cancellationToken);
+
+    private async Task<IActionResult> ServeAsync(string key, string? type, CancellationToken cancellationToken)
     {
         try
         {
-            var content = await mediaStorage.OpenReadAsync(key, cancellationToken);
+            var content = await minioService.OpenReadAsync(key, cancellationToken);
             Response.Headers.CacheControl = "public, max-age=31536000, immutable";
             return File(content, string.IsNullOrWhiteSpace(type) ? "application/octet-stream" : type);
         }

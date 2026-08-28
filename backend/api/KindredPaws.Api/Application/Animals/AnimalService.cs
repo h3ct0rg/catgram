@@ -22,8 +22,7 @@ public sealed class AnimalService(
     LikeRepository likes,
     CommentRepository comments,
     AdoptionRequestRepository adoptionRequests,
-    IMediaStorage mediaStorage,
-    IThumbnailGenerator thumbnailGenerator,
+    IMinioService minioService,
     UserManager<ApplicationUser> userManager,
     INotificationService notifications,
     IEventPublisher eventPublisher,
@@ -32,7 +31,6 @@ public sealed class AnimalService(
 {
     // "image/jpg" isn't a registered MIME type but some browsers/OS combinations report it anyway for
     // .jpg files instead of the standard "image/jpeg" — accept both rather than silently rejecting them.
-    private static readonly string[] AllowedContentTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4"];
     public async Task<ShelterResponse> CreateShelterAsync(CreateShelterRequest r, CancellationToken ct)
     {
         var shelter = new Shelter { Name = r.Name.Trim(), Description = r.Description.Trim(), Address = r.Address.Trim(), City = r.City.Trim(), Country = r.Country.Trim(), Phone = r.Phone, WhatsApp = r.WhatsApp, Email = r.Email, Latitude = r.Latitude, Longitude = r.Longitude };
@@ -199,57 +197,21 @@ public sealed class AnimalService(
             logger.LogWarning("Rejected media upload for animal {AnimalId}: size {Length} bytes.", animal.Id, upload.Length);
             throw new ArgumentException("El archivo excede 50 MB.");
         }
-        if (!AllowedContentTypes.Contains(upload.ContentType, StringComparer.OrdinalIgnoreCase))
-        {
-            logger.LogWarning("Rejected media upload for animal {AnimalId}: content type '{ContentType}' not allowed.", animal.Id, upload.ContentType);
-            throw new ArgumentException($"Tipo de archivo no permitido: '{upload.ContentType}'. Usa JPG, PNG, WEBP o MP4.");
-        }
-
-        using var buffer = new MemoryStream();
-        await upload.Content.CopyToAsync(buffer, ct);
-        var key = $"animals/{animal.Id}/{Guid.NewGuid():N}-{Path.GetFileName(upload.FileName)}";
-        buffer.Position = 0;
 
         try
         {
-            await mediaStorage.PutAsync(key, buffer, upload.Length, upload.ContentType, ct);
+            var stored = await minioService.StoreAsync($"animals/{animal.Id}", upload.FileName, upload.ContentType, upload.Length, upload.Content, withThumbnail: true, ct);
+            if (upload.IsPrimary) foreach (var media in animal.Media) media.IsPrimary = false;
+            var entity = new AnimalMedia { AnimalId = animal.Id, ObjectKey = stored.ObjectKey, ThumbnailObjectKey = stored.ThumbnailKey, ContentType = stored.ContentType, SizeBytes = stored.SizeBytes, IsPrimary = upload.IsPrimary || animal.Media.Count == 0 };
+            await animals.AddMediaAsync(entity, ct);
+            await SaveAnimalsAsync(ct, "guardar media de animal", animal.Id, entity.Id);
+            logger.LogInformation("Media {MediaId} ({Key}) saved for animal {AnimalId}. Thumbnail: {ThumbnailKey}.", entity.Id, stored.ObjectKey, animal.Id, stored.ThumbnailKey ?? "(none)");
+            return await ToMediaResponseAsync(entity, ct);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to store media object {Key} for animal {AnimalId} in media storage.", key, animal.Id);
+            logger.LogError(ex, "Failed to store media for animal {AnimalId} in media storage.", animal.Id);
             throw;
-        }
-
-        var thumbnailKey = await TryGenerateThumbnailAsync(buffer, upload.ContentType, $"animals/{animal.Id}", animal.Id, ct);
-
-        if (upload.IsPrimary) foreach (var media in animal.Media) media.IsPrimary = false;
-        var entity = new AnimalMedia { AnimalId = animal.Id, ObjectKey = key, ThumbnailObjectKey = thumbnailKey, ContentType = upload.ContentType, SizeBytes = upload.Length, IsPrimary = upload.IsPrimary || animal.Media.Count == 0 };
-        await animals.AddMediaAsync(entity, ct);
-
-        await SaveAnimalsAsync(ct, "guardar media de animal", animal.Id, entity.Id);
-        logger.LogInformation("Media {MediaId} ({Key}) saved for animal {AnimalId}. Thumbnail: {ThumbnailKey}.", entity.Id, key, animal.Id, thumbnailKey ?? "(none)");
-        return await ToMediaResponseAsync(entity, ct);
-    }
-
-    private async Task<string?> TryGenerateThumbnailAsync(MemoryStream buffer, string contentType, string keyPrefix, Guid animalId, CancellationToken ct)
-    {
-        if (!thumbnailGenerator.CanGenerate(contentType)) return null;
-        try
-        {
-            buffer.Position = 0;
-            var thumbnail = await thumbnailGenerator.GenerateAsync(buffer, ct);
-            if (thumbnail is null) return null;
-            var thumbnailKey = $"{keyPrefix}/{Guid.NewGuid():N}-thumb.webp";
-            await mediaStorage.PutAsync(thumbnailKey, thumbnail.Value.Content, thumbnail.Value.Length, thumbnail.Value.ContentType, ct);
-            await thumbnail.Value.Content.DisposeAsync();
-            return thumbnailKey;
-        }
-        catch (Exception ex)
-        {
-            // Thumbnails are a nice-to-have — a decoding/storage failure here must never block the
-            // primary media upload itself.
-            logger.LogWarning(ex, "Could not generate a thumbnail for animal {AnimalId} ({ContentType}); continuing without one.", animalId, contentType);
-            return null;
         }
     }
 
@@ -308,6 +270,6 @@ public sealed class AnimalService(
     }
 
     private static ShelterResponse ToResponse(Shelter x) => new(x.Id, x.Name, x.Description, x.Address, x.City, x.Country, x.Phone, x.WhatsApp, x.Email, x.Latitude, x.Longitude, x.Animals.Count);
-    private async Task<AnimalMediaResponse> ToMediaResponseAsync(AnimalMedia m, CancellationToken ct) => new(m.Id, await mediaStorage.GetUrlAsync(m.ObjectKey, m.ContentType, ct), m.ThumbnailObjectKey is null ? null : await mediaStorage.GetUrlAsync(m.ThumbnailObjectKey, "image/webp", ct), m.ContentType, m.IsPrimary);
+    private async Task<AnimalMediaResponse> ToMediaResponseAsync(AnimalMedia m, CancellationToken ct) => new(m.Id, await minioService.GetImageUrlAsync(m.ObjectKey, m.ContentType, ct), await minioService.GetThumbnailUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
     private async Task<AnimalResponse> ToResponseAsync(Animal x, CancellationToken ct) => new(x.Id, x.ShelterId, x.Shelter?.Name ?? "", x.Name, x.Species, x.Sex, x.Size, x.AgeMonths, x.Breed, x.Description, x.AdoptionStatus, x.Location, (await Task.WhenAll(x.Media.Select(m => ToMediaResponseAsync(m, ct)))).ToArray());
 }

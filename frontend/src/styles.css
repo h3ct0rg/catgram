@@ -216,6 +216,84 @@ button:active {
   height: 100%;
   object-fit: cover;
 }
+.media-carousel {
+  display: block;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #e6e8f3;
+}
+.media-track {
+  display: flex;
+  height: 100%;
+  transition: transform 0.25s ease;
+}
+.media-slide {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+}
+.media-slide img,
+.media-slide video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.video-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  font-size: 15px;
+}
+.carousel-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.carousel-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+.carousel-dot.active {
+  background: #fff;
+}
+.carousel-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.post-media {
+  position: relative;
+}
+.post-media .status {
+  top: 12px;
+  left: 12px;
+}
 .status {
   position: absolute;
   top: 14px;
@@ -611,6 +689,43 @@ button:active {
 }
 .media-preview-grid {
   margin-top: 4px;
+}
+.media-count {
+  color: #717786;
+  font-size: 11px;
+}
+.media-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+}
+.media-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.media-item .video-chip {
+  height: 100%;
+}
+.media-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.media-remove:hover {
+  background: rgba(220, 38, 38, 0.9);
 }
 .video-chip {
   display: grid;

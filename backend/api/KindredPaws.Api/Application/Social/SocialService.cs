@@ -20,13 +20,15 @@ public sealed class SocialService(
     FollowRepository follows,
     LikeRepository likes,
     CommentRepository comments,
-    IMediaStorage storage,
-    IThumbnailGenerator thumbnailGenerator,
+    IMinioService minioService,
     UserManager<ApplicationUser> userManager,
     INotificationService notifications,
     IEventPublisher eventPublisher,
     IAuditService audit) : ISocialService
 {
+    private const int MaxPhotosPerPost = 10;
+    private const int MaxVideosPerPost = 4;
+
     public async Task<PostResponse> CreatePostAsync(CreatePostRequest r, Guid createdByUserId, Guid? actorShelterId, IReadOnlyCollection<MediaUpload> media, CancellationToken ct)
     {
         var effectiveShelterId = actorShelterId ?? r.ShelterId;
@@ -90,9 +92,8 @@ public sealed class SocialService(
     {
         var effectiveShelterId = actorShelterId ?? r.ShelterId;
         var valid = await repository.AnimalExistsAsync(r.AnimalId, effectiveShelterId, ct); if (!valid) throw new KeyNotFoundException("Mascota no encontrada en el refugio.");
-        ValidateMedia(media);
-        var key = $"stories/{Guid.NewGuid():N}-{Path.GetFileName(media.FileName)}"; await storage.PutAsync(key, media.Content, media.Length, media.ContentType, ct);
-        var story = new Story { ShelterId = effectiveShelterId, AnimalId = r.AnimalId, Caption = r.Caption.Trim(), ObjectKey = key, ContentType = media.ContentType }; await repository.AddStoryAsync(story, ct); await repository.SaveAsync(ct);
+        var stored = await minioService.StoreAsync("stories", media.FileName, media.ContentType, media.Length, media.Content, withThumbnail: false, ct);
+        var story = new Story { ShelterId = effectiveShelterId, AnimalId = r.AnimalId, Caption = r.Caption.Trim(), ObjectKey = stored.ObjectKey, ContentType = stored.ContentType }; await repository.AddStoryAsync(story, ct); await repository.SaveAsync(ct);
         var animal = (await repository.GetAnimalsByIdsAsync([story.AnimalId], ct)).GetValueOrDefault(story.AnimalId);
         return await ToStoryResponseAsync(story, animal, ct);
     }
@@ -130,29 +131,16 @@ public sealed class SocialService(
 
     private async Task AddPostMediaAsync(Post post, IReadOnlyCollection<MediaUpload> media, CancellationToken ct)
     {
-        foreach (var upload in media.Take(10))
-        {
-            ValidateMedia(upload);
-            using var buffer = new MemoryStream();
-            await upload.Content.CopyToAsync(buffer, ct);
-            var key = $"posts/{post.Id:N}/{Guid.NewGuid():N}-{Path.GetFileName(upload.FileName)}";
-            buffer.Position = 0;
-            await storage.PutAsync(key, buffer, upload.Length, upload.ContentType, ct);
-            var thumbnailKey = await TryGenerateThumbnailAsync(buffer, upload.ContentType, $"posts/{post.Id:N}", ct);
-            post.Media.Add(new PostMedia { ObjectKey = key, ThumbnailObjectKey = thumbnailKey, ContentType = upload.ContentType, IsPrimary = post.Media.Count == 0 });
-        }
-    }
+        var photoCount = media.Count(m => m.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase));
+        var videoCount = media.Count(m => m.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase));
+        if (photoCount > MaxPhotosPerPost) throw new ArgumentException($"Una publicación puede tener hasta {MaxPhotosPerPost} fotos.");
+        if (videoCount > MaxVideosPerPost) throw new ArgumentException($"Una publicación puede tener hasta {MaxVideosPerPost} videos.");
 
-    private async Task<string?> TryGenerateThumbnailAsync(MemoryStream buffer, string contentType, string keyPrefix, CancellationToken ct)
-    {
-        if (!thumbnailGenerator.CanGenerate(contentType)) return null;
-        buffer.Position = 0;
-        var thumbnail = await thumbnailGenerator.GenerateAsync(buffer, ct);
-        if (thumbnail is null) return null;
-        var thumbnailKey = $"{keyPrefix}/{Guid.NewGuid():N}-thumb.webp";
-        await storage.PutAsync(thumbnailKey, thumbnail.Value.Content, thumbnail.Value.Length, thumbnail.Value.ContentType, ct);
-        await thumbnail.Value.Content.DisposeAsync();
-        return thumbnailKey;
+        foreach (var upload in media)
+        {
+            var stored = await minioService.StoreAsync($"posts/{post.Id:N}", upload.FileName, upload.ContentType, upload.Length, upload.Content, withThumbnail: true, ct);
+            post.Media.Add(new PostMedia { ObjectKey = stored.ObjectKey, ThumbnailObjectKey = stored.ThumbnailKey, ContentType = stored.ContentType, IsPrimary = post.Media.Count == 0 });
+        }
     }
 
     /// <summary>actorShelterId is null for SuperAdmin (unrestricted); Administradores are confined to their own shelter's content.</summary>
@@ -162,15 +150,7 @@ public sealed class SocialService(
             throw new UnauthorizedAccessException("No puedes gestionar contenido de otro refugio.");
     }
 
-    // "image/jpg" isn't a registered MIME type but some browsers/OS combinations report it anyway for
-    // .jpg files instead of the standard "image/jpeg" — accept both rather than silently rejecting them.
-    private static readonly string[] AllowedContentTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4"];
-    private static void ValidateMedia(MediaUpload m)
-    {
-        if (m.Length <= 0 || m.Length > 50 * 1024 * 1024) throw new ArgumentException("El archivo excede 50 MB.");
-        if (!AllowedContentTypes.Contains(m.ContentType, StringComparer.OrdinalIgnoreCase)) throw new ArgumentException($"Tipo de archivo no permitido: '{m.ContentType}'. Usa JPG, PNG, WEBP o MP4.");
-    }
-    private async Task<AnimalMediaResponse> ToMediaResponseAsync(PostMedia m, CancellationToken ct) => new(m.Id, await storage.GetUrlAsync(m.ObjectKey, m.ContentType, ct), m.ThumbnailObjectKey is null ? null : await storage.GetUrlAsync(m.ThumbnailObjectKey, "image/webp", ct), m.ContentType, m.IsPrimary);
+    private async Task<AnimalMediaResponse> ToMediaResponseAsync(PostMedia m, CancellationToken ct) => new(m.Id, await minioService.GetImageUrlAsync(m.ObjectKey, m.ContentType, ct), await minioService.GetThumbnailUrlAsync(m.ThumbnailObjectKey, ct), m.ContentType, m.IsPrimary);
 
     private async Task<PostResponse> ToResponseAsync(Post x, Animal? animal, Guid? currentUserId, CancellationToken ct, int? likeCount = null, int? commentCount = null, bool? likedByCurrentUser = null)
     {
@@ -185,5 +165,5 @@ public sealed class SocialService(
     }
 
     private async Task<StoryResponse> ToStoryResponseAsync(Story x, Animal? animal, CancellationToken ct) =>
-        new(x.Id, x.ShelterId, x.AnimalId, animal?.Name ?? "", x.Caption, await storage.GetUrlAsync(x.ObjectKey, x.ContentType, ct), x.ContentType, x.CreatedAt, x.ExpiresAt, x.Views.Count);
+        new(x.Id, x.ShelterId, x.AnimalId, animal?.Name ?? "", x.Caption, await minioService.GetImageUrlAsync(x.ObjectKey, x.ContentType, ct), x.ContentType, x.CreatedAt, x.ExpiresAt, x.Views.Count);
 }

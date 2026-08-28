@@ -97,8 +97,8 @@ builder.Services.AddScoped<FollowRepository>();
 builder.Services.AddScoped<NotificationRepository>();
 builder.Services.AddScoped<CommentRepository>();
 builder.Services.AddScoped<ReportRepository>();
-builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
 builder.Services.AddSingleton<IThumbnailGenerator, ImageSharpThumbnailGenerator>();
+builder.Services.AddSingleton<IMinioService, MinioService>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 

@@ -159,7 +159,7 @@ export function PetView() {
           <h2 className="section-title">Galería</h2>
           <div className="gallery">
             {gallery.map((media) => (
-              <img src={media.url} alt={animal.name} key={media.id} />
+              <img src={media.thumbnailUrl ?? media.url} alt={animal.name} key={media.id} />
             ))}
           </div>
         </>
