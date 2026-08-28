@@ -28,6 +28,8 @@ export function PostCard({ post }: Props) {
   const [showReport, setShowReport] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
 
+  const [saved, setSaved] = useState(false)
+
   const shareUrl = `${apiBaseUrl}/p/${post.id}`
   async function toggleLike() {
     if (!session.isAuthenticated) {
@@ -58,22 +60,33 @@ export function PostCard({ post }: Props) {
     setShowComments((value) => !value)
   }
 
+  function toggleSave() {
+    if (!session.isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    setSaved((val) => !val)
+  }
+
   const avatarThumb =
     post.media.find((media) => media.isPrimary)?.thumbnailUrl ?? post.media[0]?.thumbnailUrl
 
   return (
     <article className="post-card">
       <div className="post-meta">
-        <span className="shelter-icon">
+        <Link to={`/animals/${post.animalId}`} className="shelter-icon">
           {avatarThumb ? (
             <img src={avatarThumb} alt={post.animalName} />
           ) : (
             <span className="material-symbols-outlined">storefront</span>
           )}
-        </span>
+        </Link>
         <Link to={`/animals/${post.animalId}`} className="post-meta-link">
           <strong>{post.shelterName}</strong>
-          <small>📍 {post.animalName}</small>
+          <small>
+            <span className="material-symbols-outlined meta-pin-icon">location_on</span>
+            {post.animalName}
+          </small>
         </Link>
         <button
           className="more"
@@ -102,31 +115,44 @@ export function PostCard({ post }: Props) {
           onOpen={() => navigate(`/p/${post.id}`)}
         />
         <span className="status" style={{ background: adoptionStatusColor(post.adoptionStatus) }}>
-          {adoptionStatusIcon(post.adoptionStatus)} {adoptionStatusLabel(post.adoptionStatus)}
+          <span className="material-symbols-outlined status-chip-icon">
+            {adoptionStatusIcon(post.adoptionStatus) || 'pets'}
+          </span>
+          {adoptionStatusLabel(post.adoptionStatus)}
         </span>
       </div>
       <div className="post-actions">
-        <button onClick={toggleLike} className={liked ? 'liked' : ''} aria-pressed={liked}>
+        <button onClick={toggleLike} className={`action-btn-like ${liked ? 'liked' : ''}`} aria-pressed={liked}>
           <span
-            className="material-symbols-outlined"
+            className="material-symbols-outlined icon-heart"
             style={{ fontVariationSettings: `'FILL' ${liked ? 1 : 0}` }}
           >
             favorite
           </span>
-          <span>{likeCount}</span>
+          <span className="count-label">{likeCount}</span>
         </button>
-        <button onClick={toggleComments} className={showComments ? 'active' : ''}>
+        <button onClick={toggleComments} className={`action-btn-comment ${showComments ? 'active' : ''}`}>
           <span className="material-symbols-outlined">chat_bubble</span>
-          <span>{commentCount}</span>
+          <span className="count-label">{commentCount}</span>
         </button>
-        <button onClick={() => setShowShare(true)}>
+        <button onClick={() => setShowShare(true)} className="action-btn-share" aria-label="Compartir">
           <span className="material-symbols-outlined">send</span>
         </button>
+        <button onClick={toggleSave} className={`action-btn-save ${saved ? 'active' : ''}`} aria-label="Guardar">
+          <span
+            className="material-symbols-outlined"
+            style={{ fontVariationSettings: `'FILL' ${saved ? 1 : 0}` }}
+          >
+            bookmark
+          </span>
+        </button>
       </div>
-      <p className="caption">
-        <strong>{post.shelterName}</strong> {post.caption}
-      </p>
-      <small className="timestamp">{formatRelativeTime(post.createdAt)}</small>
+      <div className="post-content">
+        <p className="caption">
+          <strong className="caption-shelter">{post.shelterName}</strong> {post.caption}
+        </p>
+        <small className="timestamp">{formatRelativeTime(post.createdAt)}</small>
+      </div>
 
       {showComments && (
         <CommentSheet
