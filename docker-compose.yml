@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kindredpaws}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kindredpaws-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-kindredpaws}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kindredpaws}']
+      interval: 5s
+      timeout: 5s
+      retries: 10      
+  
+  api:
+    build:
+      context: ./backend
+      dockerfile: api/KindredPaws.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-kindredpaws};Username=${POSTGRES_USER:-kindredpaws};Password=${POSTGRES_PASSWORD:-kindredpaws-dev}
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-guest}
+      Minio__Endpoint: minio:9000
+      Minio__AccessKey: ${MINIO_ROOT_USER:-kindredpaws}
+      Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-kindredpaws-dev}
+      Minio__UseSSL: 'false'
+      Jwt__Key: ${JWT_KEY:-development-only-change-this-key-32-chars}
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Cors__AllowedOrigins__0: http://localhost:5173
+      Seed__SuperAdmin__UserName: ${SUPERADMIN_USERNAME:-superadmin}
+      Seed__SuperAdmin__Password: ${SUPERADMIN_PASSWORD:-superadmin}
+      Seed__SuperAdmin__Email: ${SUPERADMIN_EMAIL:-superadmin@kindredpaws.local}
+    ports:
+      - '5080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: worker/KindredPaws.NotificationWorker/Dockerfile
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-kindredpaws};Username=${POSTGRES_USER:-kindredpaws};Password=${POSTGRES_PASSWORD:-kindredpaws-dev}
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-guest}
+      Smtp__Host: mailpit
+      Smtp__Port: '1025'
+      Smtp__FrontendBaseUrl: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:5080
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        VITE_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+    ports:
+      - '5173:80'
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  minio_data:
