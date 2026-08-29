@@ -594,3 +594,19 @@ export function createPost(data: CreatePostInput): Promise<Post> {
   data.files.forEach((file) => form.append('files', file))
   return request<Post>('/api/v1/social/posts', { method: 'POST', body: form })
 }
+
+// --- Story creation (admin) ---
+
+export type CreateStoryInput = {
+  animalId: string
+  caption: string
+  file: File
+}
+
+export function createStory(data: CreateStoryInput): Promise<Story> {
+  const form = new FormData()
+  form.set('AnimalId', data.animalId)
+  form.set('Caption', data.caption)
+  form.set('file', data.file)
+  return request<Story>('/api/v1/social/stories', { method: 'POST', body: form })
+}
