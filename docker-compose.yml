@@ -1,3 +1,13 @@
+networks:
+  catgram-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.90.0.0/24
+  nginx-network:
+    external: true
+    name: nginx-manager_default
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -10,71 +20,86 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kindredpaws}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kindredpaws} -d ${POSTGRES_DB:-kindredpaws}']
       interval: 5s
       timeout: 5s
-      retries: 10      
-  
+      retries: 10
+    networks:
+      - catgram-network
+
   api:
     build:
       context: ./backend
       dockerfile: api/KindredPaws.Api/Dockerfile
+    container_name: catgram-api
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-kindredpaws};Username=${POSTGRES_USER:-kindredpaws};Password=${POSTGRES_PASSWORD:-kindredpaws-dev}
-      RabbitMq__HostName: rabbitmq
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Default: ${ConnectionStrings__Default:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-kindredpaws};Username=${POSTGRES_USER:-kindredpaws};Password=${POSTGRES_PASSWORD:-kindredpaws-dev}}
+      RabbitMq__HostName: ${RabbitMq__HostName:-rabbitmq}
       RabbitMq__UserName: ${RABBITMQ_USER:-guest}
       RabbitMq__Password: ${RABBITMQ_PASSWORD:-guest}
-      Minio__Endpoint: minio:9000
+      RabbitMq__NotificationQueue: ${RabbitMq__NotificationQueue:-catGram.notifications}
+      Minio__Endpoint: ${Minio__Endpoint:-minio:9000}
       Minio__AccessKey: ${MINIO_ROOT_USER:-kindredpaws}
       Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-kindredpaws-dev}
-      Minio__UseSSL: 'false'
+      Minio__UseSSL: ${Minio__UseSSL:-false}
       Jwt__Key: ${JWT_KEY:-development-only-change-this-key-32-chars}
       Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Cors__AllowedOrigins__0: http://localhost:5173
+      Cors__AllowedOrigins__1: https://catgram.thesender.net
       Seed__SuperAdmin__UserName: ${SUPERADMIN_USERNAME:-superadmin}
       Seed__SuperAdmin__Password: ${SUPERADMIN_PASSWORD:-superadmin}
       Seed__SuperAdmin__Email: ${SUPERADMIN_EMAIL:-superadmin@kindredpaws.local}
     ports:
-      - '5080:8080'
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - '8091:8080'
+    networks:
+      - catgram-network
+      - nginx-network
 
   worker:
     build:
       context: ./backend
       dockerfile: worker/KindredPaws.NotificationWorker/Dockerfile
-    environment:
-      DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-kindredpaws};Username=${POSTGRES_USER:-kindredpaws};Password=${POSTGRES_PASSWORD:-kindredpaws-dev}
-      RabbitMq__HostName: rabbitmq
-      RabbitMq__UserName: ${RABBITMQ_USER:-guest}
-      RabbitMq__Password: ${RABBITMQ_PASSWORD:-guest}
-      Smtp__Host: mailpit
-      Smtp__Port: '1025'
-      Smtp__FrontendBaseUrl: http://localhost:5173
+    container_name: catgram-worker
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__Default: ${ConnectionStrings__Default:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-kindredpaws};Username=${POSTGRES_USER:-kindredpaws};Password=${POSTGRES_PASSWORD:-kindredpaws-dev}}
+      RabbitMq__HostName: ${RabbitMq__HostName:-rabbitmq}
+      RabbitMq__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-guest}
+      RabbitMq__NotificationQueue: ${RabbitMq__NotificationQueue:-catGram.notifications}
+      Smtp__Host: ${Smtp__Host:-mailpit}
+      Smtp__Port: ${Smtp__Port:-1025}
+      Smtp__EnableSsl: ${Smtp__EnableSsl:-false}
+      Smtp__UserName: ${Smtp__UserName:-}
+      Smtp__Password: ${Smtp__Password:-}
+      Smtp__From: ${Smtp__From:-no-reply@kindredpaws.local}
+      Smtp__FrontendBaseUrl: ${Smtp__FrontendBaseUrl:-http://localhost:5173}
+    networks:
+      - catgram-network
+      - nginx-network
 
   frontend:
+    container_name: catgram-frontend
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: http://localhost:5080
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://catgram.thesender.net}
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
         VITE_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     ports:
-      - '5173:80'
+      - '5181:80'
     depends_on:
       - api
+    networks:
+      - catgram-network
+      - nginx-network
 
 volumes:
   postgres_data:
