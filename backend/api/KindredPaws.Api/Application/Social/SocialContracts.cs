@@ -11,6 +11,7 @@ public sealed record PostResponse(
     string ShelterName,
     Guid AnimalId,
     string AnimalName,
+    string? AnimalAvatarUrl,
     string AdoptionStatus,
     string Caption,
     string? Location,
@@ -20,6 +21,8 @@ public sealed record PostResponse(
     DateTimeOffset CreatedAt,
     int LikeCount,
     int CommentCount,
+    int ViewCount,
+    int ShareCount,
     bool LikedByCurrentUser,
     IReadOnlyCollection<AnimalMediaResponse> Media);
 public sealed record StoryResponse(Guid Id, Guid ShelterId, Guid AnimalId, string AnimalName, string Caption, string MediaUrl, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt, int Views);

@@ -64,9 +64,9 @@ export function FeedPage() {
       <TopBar onHome={() => navigate('/')} />
       <main className="feed-page">
         <StoryRail
-            stories={stories}
-            onStoryAdded={(story) => setStories((prev) => [story, ...prev])}
-          />
+          stories={stories}
+          onStoryAdded={(story) => setStories((prev) => [story, ...prev])}
+        />
         <div className="feed-sort-toggle" role="group" aria-label="Ordenar publicaciones">
           <button
             type="button"

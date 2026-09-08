@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 
-
 let googleScriptPromise: Promise<void> | null = null
 
 function loadGoogleScript(): Promise<void> {

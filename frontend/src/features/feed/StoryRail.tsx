@@ -25,11 +25,7 @@ export function StoryRail({ stories, onStoryAdded }: Props) {
       <div className="stories" aria-label="Historias">
         {/* Only show "Tu historia" button to shelter admins */}
         {isAdmin && (
-          <button
-            type="button"
-            className="story story-add"
-            onClick={() => setShowModal(true)}
-          >
+          <button type="button" className="story story-add" onClick={() => setShowModal(true)}>
             <span className="story-ring story-add-ring">
               <span className="story-add-icon material-symbols-outlined">add</span>
             </span>
@@ -48,10 +44,7 @@ export function StoryRail({ stories, onStoryAdded }: Props) {
       </div>
 
       {showModal && (
-        <CreateStoryModal
-          onClose={() => setShowModal(false)}
-          onPublished={handlePublished}
-        />
+        <CreateStoryModal onClose={() => setShowModal(false)} onPublished={handlePublished} />
       )}
     </>
   )

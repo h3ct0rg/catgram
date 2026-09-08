@@ -48,4 +48,3 @@ interface Window {
     maps?: typeof google.maps
   }
 }
-

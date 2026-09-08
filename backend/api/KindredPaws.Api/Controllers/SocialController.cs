@@ -32,6 +32,16 @@ public sealed class SocialController(ISocialService socialService) : ControllerB
         return await socialService.GetPostAsync(id, userId, ct);
     }
 
+    [HttpGet("animals/{animalId:guid}/posts")]
+    [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
+    public Task<IReadOnlyCollection<PostResponse>> GetPostsByAnimal(Guid animalId, CancellationToken ct) =>
+        socialService.GetPostsByAnimalAsync(animalId, ActorShelterId, ct);
+
+    [HttpGet("posts/{id:guid}/admin")]
+    [Authorize(Roles = $"{Roles.Administrator},{Roles.SuperAdministrator}")]
+    public Task<PostResponse> GetPostForAdmin(Guid id, CancellationToken ct) =>
+        socialService.GetPostForAdminAsync(id, ActorShelterId, ct);
+
     [HttpPost("posts/{id:guid}/shares")]
     [AllowAnonymous]
     public async Task<IActionResult> RegisterShare(Guid id, CancellationToken ct)

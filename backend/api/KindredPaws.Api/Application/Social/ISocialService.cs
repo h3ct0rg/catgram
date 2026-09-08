@@ -8,6 +8,8 @@ public interface ISocialService
     Task<PostResponse> UpdatePostAsync(Guid id, UpdatePostRequest request, Guid? actorShelterId, CancellationToken cancellationToken);
     Task HidePostAsync(Guid id, Guid actorUserId, Guid? actorShelterId, CancellationToken cancellationToken);
     Task<PostResponse> GetPostAsync(Guid id, Guid? currentUserId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<PostResponse>> GetPostsByAnimalAsync(Guid animalId, Guid? actorShelterId, CancellationToken cancellationToken);
+    Task<PostResponse> GetPostForAdminAsync(Guid id, Guid? actorShelterId, CancellationToken cancellationToken);
     Task RegisterPostViewAsync(Guid id, CancellationToken cancellationToken);
     Task RegisterPostShareAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<PostResponse>> GetFeedAsync(DateTimeOffset? before, int skip, int pageSize, string sort, bool successStoriesOnly, Guid? currentUserId, CancellationToken cancellationToken);

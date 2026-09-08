@@ -12,6 +12,7 @@ export type Post = {
   shelterName: string
   animalId: string
   animalName: string
+  animalAvatarUrl: string | null
   adoptionStatus: string
   caption: string
   location: string | null
@@ -21,6 +22,8 @@ export type Post = {
   createdAt: string
   likeCount: number
   commentCount: number
+  viewCount: number
+  shareCount: number
   likedByCurrentUser: boolean
   media: AnimalMedia[]
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
 import { deleteAnimal, getAnimals } from '../../services/apiClient'
 import { Animal } from '../../types/domain'
+import { ConfirmModal } from './ConfirmModal'
 
 export function PetsPage() {
   const navigate = useNavigate()
@@ -11,6 +12,8 @@ export function PetsPage() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
+  const [petToDelete, setPetToDelete] = useState<Animal | null>(null)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (!session.shelterId) {
@@ -23,15 +26,16 @@ export function PetsPage() {
       .finally(() => setLoading(false))
   }, [session.shelterId])
 
-  async function remove(pet: Animal) {
-    if (!window.confirm(`¿Eliminar a ${pet.name}? Esto no se puede deshacer.`)) return
-    setBusyId(pet.id)
-    setError('')
+  async function confirmDelete() {
+    if (!petToDelete) return
+    setBusyId(petToDelete.id)
+    setDeleteError('')
     try {
-      await deleteAnimal(pet.id)
-      setPets((current) => current.filter((item) => item.id !== pet.id))
+      await deleteAnimal(petToDelete.id)
+      setPets((current) => current.filter((item) => item.id !== petToDelete.id))
+      setPetToDelete(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo eliminar la mascota.')
+      setDeleteError(err instanceof Error ? err.message : 'No se pudo eliminar la mascota.')
     } finally {
       setBusyId('')
     }
@@ -78,6 +82,12 @@ export function PetsPage() {
               <div className="admin-row-actions">
                 <button
                   className="secondary-button"
+                  onClick={() => navigate(`/admin/pets/${pet.id}/posts`)}
+                >
+                  Publicaciones
+                </button>
+                <button
+                  className="secondary-button"
                   onClick={() => navigate(`/animals/${pet.id}/edit`)}
                 >
                   Editar
@@ -85,7 +95,10 @@ export function PetsPage() {
                 <button
                   className="danger-button"
                   disabled={busyId === pet.id}
-                  onClick={() => remove(pet)}
+                  onClick={() => {
+                    setDeleteError('')
+                    setPetToDelete(pet)
+                  }}
                 >
                   Eliminar
                 </button>
@@ -97,6 +110,19 @@ export function PetsPage() {
           <p className="admin-empty">Todavía no tienes mascotas registradas.</p>
         )}
       </div>
+
+      {petToDelete && (
+        <ConfirmModal
+          title="Eliminar mascota"
+          message={`¿Eliminar a ${petToDelete.name}? Esto no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          danger
+          busy={busyId === petToDelete.id}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setPetToDelete(null)}
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
 import { createPost, getAnimals } from '../../services/apiClient'
 import { Animal } from '../../types/domain'
@@ -10,9 +10,11 @@ const MAX_VIDEOS = 4
 export function CreatePostPage() {
   const navigate = useNavigate()
   const session = useSession()
+  const [searchParams] = useSearchParams()
+  const preselectedAnimalId = searchParams.get('animalId') ?? ''
   const [animals, setAnimals] = useState<Animal[]>([])
   const [loadingAnimals, setLoadingAnimals] = useState(true)
-  const [animalId, setAnimalId] = useState('')
+  const [animalId, setAnimalId] = useState(preselectedAnimalId)
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
   const [hashtags, setHashtags] = useState('')
@@ -105,8 +107,13 @@ export function CreatePostPage() {
     return (
       <div>
         <p className="body-copy">¡Publicación creada!</p>
-        <button className="primary-button" onClick={() => navigate('/')}>
-          Ver el muro
+        <button
+          className="primary-button"
+          onClick={() =>
+            navigate(preselectedAnimalId ? `/admin/pets/${preselectedAnimalId}/posts` : '/')
+          }
+        >
+          {preselectedAnimalId ? 'Volver a publicaciones' : 'Ver el muro'}
         </button>
       </div>
     )
@@ -135,17 +142,23 @@ export function CreatePostPage() {
         </div>
       ) : (
         <form className="register-form" onSubmit={submit}>
-          <label>
-            Mascota
-            <select value={animalId} onChange={(event) => setAnimalId(event.target.value)} required>
-              <option value="">Selecciona una mascota</option>
-              {animals.map((animal) => (
-                <option key={animal.id} value={animal.id}>
-                  {animal.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!preselectedAnimalId && (
+            <label>
+              Mascota
+              <select
+                value={animalId}
+                onChange={(event) => setAnimalId(event.target.value)}
+                required
+              >
+                <option value="">Selecciona una mascota</option>
+                {animals.map((animal) => (
+                  <option key={animal.id} value={animal.id}>
+                    {animal.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {selectedAnimal && (
             <div className="selected-animal-chip">

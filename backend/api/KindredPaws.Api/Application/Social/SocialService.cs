@@ -64,6 +64,32 @@ public sealed class SocialService(
         return await ToResponseAsync(post, animal, currentUserId, ct);
     }
 
+    public async Task<IReadOnlyCollection<PostResponse>> GetPostsByAnimalAsync(Guid animalId, Guid? actorShelterId, CancellationToken ct)
+    {
+        var animal = (await repository.GetAnimalsByIdsAsync([animalId], ct)).GetValueOrDefault(animalId) ?? throw new KeyNotFoundException("Mascota no encontrada.");
+        EnsureShelterAccess(animal.ShelterId, actorShelterId);
+        var posts = await repository.ListByAnimalAsync(animalId, ct);
+        if (posts.Count == 0) return [];
+
+        // Pre-fetch like/comment counts in bulk (same as GetFeedAsync) before fanning out with
+        // Task.WhenAll below — ToResponseAsync would otherwise issue its own per-post CountAsync
+        // calls concurrently against the same scoped DbContext, which EF Core does not allow.
+        var postIds = posts.Select(x => x.Id).ToArray();
+        var likeCounts = await likes.CountManyAsync(postIds, ct);
+        var commentCounts = await comments.CountManyAsync(postIds, ct);
+
+        return await Task.WhenAll(posts.Select(post => ToResponseAsync(
+            post, animal, null, ct, likeCounts.GetValueOrDefault(post.Id), commentCounts.GetValueOrDefault(post.Id), false)));
+    }
+
+    public async Task<PostResponse> GetPostForAdminAsync(Guid id, Guid? actorShelterId, CancellationToken ct)
+    {
+        var post = await repository.GetPostAsync(id, ct) ?? throw new KeyNotFoundException("Publicación no encontrada.");
+        EnsureShelterAccess(post.ShelterId, actorShelterId);
+        var animal = (await repository.GetAnimalsByIdsAsync([post.AnimalId], ct)).GetValueOrDefault(post.AnimalId);
+        return await ToResponseAsync(post, animal, null, ct);
+    }
+
     public async Task<IReadOnlyCollection<PostResponse>> GetFeedAsync(DateTimeOffset? before, int skip, int pageSize, string sort, bool successStoriesOnly, Guid? currentUserId, CancellationToken ct)
     {
         pageSize = Math.Clamp(pageSize, 1, 50);
@@ -157,11 +183,18 @@ public sealed class SocialService(
         likeCount ??= await likes.CountAsync(x.Id, ct);
         commentCount ??= await comments.CountAsync(x.Id, ct);
         likedByCurrentUser ??= currentUserId.HasValue && await likes.ExistsAsync(x.Id, currentUserId.Value, ct);
+        var animalAvatarUrl = await GetAnimalAvatarUrlAsync(animal, ct);
         return new(
-            x.Id, x.ShelterId, animal?.Shelter?.Name ?? "", x.AnimalId, animal?.Name ?? "", animal?.AdoptionStatus.ToString() ?? "",
+            x.Id, x.ShelterId, animal?.Shelter?.Name ?? "", x.AnimalId, animal?.Name ?? "", animalAvatarUrl, animal?.AdoptionStatus.ToString() ?? "",
             x.Caption, x.Location, x.Hashtags, x.IsFeatured, x.IsSuccessStory, x.CreatedAt,
-            likeCount.Value, commentCount.Value, likedByCurrentUser.Value,
+            likeCount.Value, commentCount.Value, x.ViewCount, x.ShareCount, likedByCurrentUser.Value,
             (await Task.WhenAll(x.Media.Select(m => ToMediaResponseAsync(m, ct)))).ToArray());
+    }
+
+    private async Task<string?> GetAnimalAvatarUrlAsync(Animal? animal, CancellationToken ct)
+    {
+        var media = animal?.Media.FirstOrDefault(m => m.IsPrimary) ?? animal?.Media.FirstOrDefault();
+        return media is null ? null : await minioService.GetThumbnailUrlAsync(media.ThumbnailObjectKey, ct);
     }
 
     private async Task<StoryResponse> ToStoryResponseAsync(Story x, Animal? animal, CancellationToken ct) =>

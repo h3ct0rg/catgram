@@ -59,7 +59,6 @@ export function PetView() {
     }
   }, [animalId])
 
-
   useEffect(() => {
     if (!animalId || !isAdmin) return
     getAnimalStats(animalId)

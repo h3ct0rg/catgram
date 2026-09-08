@@ -15,36 +15,38 @@ import { getInitials, stringToColor } from '../../utils/avatarColor'
 
 type Tab = 'profile' | 'notifications' | 'preferences'
 
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { label: string; description: string; icon: string }
-> = {
-  Like: {
-    label: 'Me gusta',
-    description: 'Recibe alertas cuando a otros usuarios les gustan tus comentarios o publicaciones.',
-    icon: 'favorite',
-  },
-  Comment: {
-    label: 'Comentarios',
-    description: 'Avisos cuando alguien comenta en publicaciones en las que has interactuado.',
-    icon: 'chat_bubble',
-  },
-  Reply: {
-    label: 'Respuestas a comentarios',
-    description: 'Notificaciones inmediatas cuando alguien te responde directamente a un comentario.',
-    icon: 'reply',
-  },
-  AdoptionStatusChanged: {
-    label: 'Cambios de estado de adopción',
-    description: 'Te avisa si una mascota que estás siguiendo fue Adoptada, puesta en Proceso o Disponible.',
-    icon: 'pets',
-  },
-  NewPost: {
-    label: 'Nuevas fotos e historias',
-    description: 'Te enteras al instante cuando los refugios que sigues suben una nueva publicación de sus mascotas.',
-    icon: 'photo_library',
-  },
-}
+const TYPE_CONFIG: Record<NotificationType, { label: string; description: string; icon: string }> =
+  {
+    Like: {
+      label: 'Me gusta',
+      description:
+        'Recibe alertas cuando a otros usuarios les gustan tus comentarios o publicaciones.',
+      icon: 'favorite',
+    },
+    Comment: {
+      label: 'Comentarios',
+      description: 'Avisos cuando alguien comenta en publicaciones en las que has interactuado.',
+      icon: 'chat_bubble',
+    },
+    Reply: {
+      label: 'Respuestas a comentarios',
+      description:
+        'Notificaciones inmediatas cuando alguien te responde directamente a un comentario.',
+      icon: 'reply',
+    },
+    AdoptionStatusChanged: {
+      label: 'Cambios de estado de adopción',
+      description:
+        'Te avisa si una mascota que estás siguiendo fue Adoptada, puesta en Proceso o Disponible.',
+      icon: 'pets',
+    },
+    NewPost: {
+      label: 'Nuevas fotos e historias',
+      description:
+        'Te enteras al instante cuando los refugios que sigues suben una nueva publicación de sus mascotas.',
+      icon: 'photo_library',
+    },
+  }
 
 export function NotificationsPage() {
   const navigate = useNavigate()
@@ -178,8 +180,8 @@ export function NotificationsPage() {
                 {session.roles.includes('SuperAdministrador')
                   ? 'Super Administrador'
                   : session.roles.includes('Administrador')
-                  ? 'Administrador de Refugio'
-                  : 'Amante de las Mascotas (Usuario)'}
+                    ? 'Administrador de Refugio'
+                    : 'Amante de las Mascotas (Usuario)'}
               </span>
               <p className="profile-hero-subtitle">
                 Explora historias, sigue adopciones y personaliza tus avisos.
@@ -325,7 +327,8 @@ export function NotificationsPage() {
                 <span className="material-symbols-outlined">tune</span> Centro de Configuración
               </h3>
               <p className="preferences-explainer">
-                Personaliza qué eventos generan alertas en tu cuenta. Activa o desactiva los interruptores para recibir únicamente las notificaciones que te interesan.
+                Personaliza qué eventos generan alertas en tu cuenta. Activa o desactiva los
+                interruptores para recibir únicamente las notificaciones que te interesan.
               </p>
 
               <div className="preferences-items-list">
@@ -369,4 +372,3 @@ export function NotificationsPage() {
     </div>
   )
 }
-

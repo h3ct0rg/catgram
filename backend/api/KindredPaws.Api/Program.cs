@@ -18,6 +18,7 @@ using KindredPaws.Api.Infrastructure.Messaging;
 using KindredPaws.Api.Infrastructure.Persistence;
 using KindredPaws.Api.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -126,9 +127,25 @@ app.UseExceptionHandler(errorApp =>
     errorApp.UseCors("Frontend");
     errorApp.Run(async context =>
     {
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        await context.RequestServices.GetRequiredService<IProblemDetailsService>()
-            .WriteAsync(new ProblemDetailsContext { HttpContext = context });
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        // Known "business rule" exception types carry a user-facing Spanish message (e.g. "No
+        // puedes eliminar una mascota con publicaciones.") that the frontend already knows how to
+        // read from ProblemDetails.Title — surface it instead of a bare, generic 500. Anything else
+        // is a genuine bug, so its message stays hidden from the client.
+        var (statusCode, title) = exception switch
+        {
+            KeyNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
+            ArgumentException or InvalidOperationException => (StatusCodes.Status400BadRequest, exception.Message),
+            _ => (StatusCodes.Status500InternalServerError, "Ocurrió un error inesperado. Intenta de nuevo más tarde.")
+        };
+
+        context.Response.StatusCode = statusCode;
+        await context.RequestServices.GetRequiredService<IProblemDetailsService>().WriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = context,
+            ProblemDetails = { Status = statusCode, Title = title }
+        });
     });
 });
 app.UseHttpsRedirection();

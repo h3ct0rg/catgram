@@ -68,8 +68,7 @@ export function PostCard({ post }: Props) {
     setSaved((val) => !val)
   }
 
-  const avatarThumb =
-    post.media.find((media) => media.isPrimary)?.thumbnailUrl ?? post.media[0]?.thumbnailUrl
+  const avatarThumb = post.animalAvatarUrl
 
   return (
     <article className="post-card">
@@ -122,7 +121,11 @@ export function PostCard({ post }: Props) {
         </span>
       </div>
       <div className="post-actions">
-        <button onClick={toggleLike} className={`action-btn-like ${liked ? 'liked' : ''}`} aria-pressed={liked}>
+        <button
+          onClick={toggleLike}
+          className={`action-btn-like ${liked ? 'liked' : ''}`}
+          aria-pressed={liked}
+        >
           <span
             className="material-symbols-outlined icon-heart"
             style={{ fontVariationSettings: `'FILL' ${liked ? 1 : 0}` }}
@@ -131,14 +134,25 @@ export function PostCard({ post }: Props) {
           </span>
           <span className="count-label">{likeCount}</span>
         </button>
-        <button onClick={toggleComments} className={`action-btn-comment ${showComments ? 'active' : ''}`}>
+        <button
+          onClick={toggleComments}
+          className={`action-btn-comment ${showComments ? 'active' : ''}`}
+        >
           <span className="material-symbols-outlined">chat_bubble</span>
           <span className="count-label">{commentCount}</span>
         </button>
-        <button onClick={() => setShowShare(true)} className="action-btn-share" aria-label="Compartir">
+        <button
+          onClick={() => setShowShare(true)}
+          className="action-btn-share"
+          aria-label="Compartir"
+        >
           <span className="material-symbols-outlined">send</span>
         </button>
-        <button onClick={toggleSave} className={`action-btn-save ${saved ? 'active' : ''}`} aria-label="Guardar">
+        <button
+          onClick={toggleSave}
+          className={`action-btn-save ${saved ? 'active' : ''}`}
+          aria-label="Guardar"
+        >
           <span
             className="material-symbols-outlined"
             style={{ fontVariationSettings: `'FILL' ${saved ? 1 : 0}` }}

@@ -9,13 +9,7 @@ type Props = {
   city?: string
 }
 
-export function ShelterLocationMap({
-  latitude,
-  longitude,
-  shelterName,
-  address,
-  city,
-}: Props) {
+export function ShelterLocationMap({ latitude, longitude, shelterName, address, city }: Props) {
   const { loaded, error } = useGoogleMaps()
   const mapRef = useRef<HTMLDivElement>(null)
   const googleMapRef = useRef<google.maps.Map | null>(null)
@@ -102,7 +96,12 @@ export function ShelterLocationMap({
       <div className="shelter-map-footer">
         <div className="shelter-map-info">
           <strong>{shelterName}</strong>
-          {address && <span>📍 {address}{city ? `, ${city}` : ''}</span>}
+          {address && (
+            <span>
+              📍 {address}
+              {city ? `, ${city}` : ''}
+            </span>
+          )}
         </div>
         <a
           href={googleMapsDirectionsUrl}

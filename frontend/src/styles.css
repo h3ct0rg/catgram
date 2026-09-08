@@ -128,7 +128,9 @@ button:active {
   color: var(--primary);
   border: 2px solid rgba(255, 255, 255, 0.8);
   box-shadow: 0 2px 8px rgba(46, 91, 255, 0.15);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .avatar:hover {
   transform: scale(1.05);
@@ -235,7 +237,9 @@ button:active {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--electric), #00c6ff, var(--primary));
   box-shadow: 0 4px 14px rgba(46, 91, 255, 0.2);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .story:hover .story-ring {
   transform: translateY(-2px);
@@ -2132,6 +2136,17 @@ button:active {
   color: white;
   cursor: pointer;
 }
+.sheet .danger-button {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  background: #d64545;
+  color: white;
+  cursor: pointer;
+}
 
 .search-filters {
   display: grid;
@@ -2806,7 +2821,7 @@ button:active {
 
 .slider-round:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
@@ -2842,8 +2857,14 @@ button:active {
 }
 
 @keyframes modal-slide-up {
-  from { opacity: 0; transform: translateY(40px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .create-story-header {
@@ -2852,7 +2873,7 @@ button:active {
   justify-content: space-between;
   padding: 20px 22px 16px;
   border-bottom: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -2893,13 +2914,13 @@ button:active {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
   color: #5d6371;
   transition: all 0.2s;
 }
 
 .modal-close-btn:hover {
-  background: rgba(0,0,0,0.12);
+  background: rgba(0, 0, 0, 0.12);
   color: #181c23;
 }
 
@@ -2956,13 +2977,13 @@ button:active {
   padding: 10px 6px;
   border-radius: 16px;
   border: 2px solid transparent;
-  background: rgba(255,255,255,0.55);
+  background: rgba(255, 255, 255, 0.55);
   font-size: 11.5px;
   font-weight: 600;
   color: #414754;
   transition: all 0.18s ease;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,89,187,0.04);
+  box-shadow: 0 2px 8px rgba(0, 89, 187, 0.04);
 }
 
 .animal-select-card:hover {
@@ -3061,7 +3082,7 @@ button:active {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
   display: grid;
   place-items: center;
@@ -3084,7 +3105,7 @@ button:active {
   padding: 12px 14px;
   border-radius: 14px;
   border: 1.5px solid var(--stroke);
-  background: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.7);
   font-size: 13.5px;
   color: #181c23;
   resize: vertical;
@@ -3145,6 +3166,3 @@ button:active {
 .create-story-submit .material-symbols-outlined {
   font-size: 18px;
 }
-
-
-

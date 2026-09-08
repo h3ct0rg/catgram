@@ -25,9 +25,7 @@ export function LocationPickerMap({ latitude, longitude, onChange, shelterName }
     // If map is already initialized, just update marker/center
     if (!googleMapRef.current) {
       const initialCenter =
-        latitude && longitude
-          ? { lat: latitude, lng: longitude }
-          : DEFAULT_CENTER
+        latitude && longitude ? { lat: latitude, lng: longitude } : DEFAULT_CENTER
 
       const initialZoom = latitude && longitude ? 15 : 12
 
@@ -134,7 +132,9 @@ export function LocationPickerMap({ latitude, longitude, onChange, shelterName }
       (err) => {
         setGeoLocating(false)
         console.warn('Geolocation error:', err)
-        setGeoError('No pudimos acceder a tu ubicación actual. Puedes hacer clic en el mapa para marcarla.')
+        setGeoError(
+          'No pudimos acceder a tu ubicación actual. Puedes hacer clic en el mapa para marcarla.',
+        )
       },
       { enableHighAccuracy: true, timeout: 10000 },
     )

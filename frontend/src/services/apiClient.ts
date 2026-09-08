@@ -177,6 +177,18 @@ export function getPost(postId: string): Promise<Post> {
   return request<Post>(`/api/v1/social/posts/${postId}`)
 }
 
+export function getAnimalPosts(animalId: string): Promise<Post[]> {
+  return request<Post[]>(`/api/v1/social/animals/${animalId}/posts`)
+}
+
+export function getPostForAdmin(postId: string): Promise<Post> {
+  return request<Post>(`/api/v1/social/posts/${postId}/admin`)
+}
+
+export async function deletePost(postId: string): Promise<void> {
+  await request<void>(`/api/v1/social/posts/${postId}`, { method: 'DELETE' })
+}
+
 export function getStories(): Promise<Story[]> {
   return request<Story[]>('/api/v1/social/stories')
 }

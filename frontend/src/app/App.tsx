@@ -17,6 +17,8 @@ import { CreatePostPage } from '../features/admin/CreatePostPage'
 import { InviteUserPage } from '../features/admin/InviteUserPage'
 import { MyShelterPage } from '../features/admin/MyShelterPage'
 import { PetsPage } from '../features/admin/PetsPage'
+import { AnimalPostsPage } from '../features/admin/AnimalPostsPage'
+import { AdminPostDetailPage } from '../features/admin/AdminPostDetailPage'
 import { SearchPage } from '../features/discovery/SearchPage'
 import { RequireRole } from './RequireRole'
 
@@ -120,6 +122,22 @@ export function App() {
             element={
               <RequireRole roles={ADMINISTRADOR_ONLY}>
                 <PetsPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="pets/:animalId/posts"
+            element={
+              <RequireRole roles={ADMINISTRADOR_ONLY}>
+                <AnimalPostsPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="pets/:animalId/posts/:postId"
+            element={
+              <RequireRole roles={ADMINISTRADOR_ONLY}>
+                <AdminPostDetailPage />
               </RequireRole>
             }
           />

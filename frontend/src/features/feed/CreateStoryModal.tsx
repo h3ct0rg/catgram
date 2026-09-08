@@ -51,8 +51,14 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!animalId) { setError('Selecciona una mascota.'); return }
-    if (!file) { setError('Elige una foto o video.'); return }
+    if (!animalId) {
+      setError('Selecciona una mascota.')
+      return
+    }
+    if (!file) {
+      setError('Elige una foto o video.')
+      return
+    }
     setError('')
     setPublishing(true)
     try {
@@ -108,11 +114,15 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
                     {animal.media?.[0] ? (
                       <img src={animal.media[0].url} alt={animal.name} />
                     ) : (
-                      <span className="animal-select-placeholder material-symbols-outlined">pets</span>
+                      <span className="animal-select-placeholder material-symbols-outlined">
+                        pets
+                      </span>
                     )}
                     <span>{animal.name}</span>
                     {animalId === animal.id && (
-                      <span className="animal-selected-check material-symbols-outlined">check_circle</span>
+                      <span className="animal-selected-check material-symbols-outlined">
+                        check_circle
+                      </span>
                     )}
                   </button>
                 ))}
@@ -133,7 +143,9 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
                 className="media-drop-zone"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <span className="material-symbols-outlined media-drop-icon">add_photo_alternate</span>
+                <span className="material-symbols-outlined media-drop-icon">
+                  add_photo_alternate
+                </span>
                 <span>Toca para elegir una foto o video</span>
                 <small>JPG, PNG, MP4, hasta 50 MB</small>
               </button>
@@ -186,7 +198,12 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
 
           {/* Actions */}
           <div className="create-story-actions">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={publishing}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onClose}
+              disabled={publishing}
+            >
               Cancelar
             </button>
             <button

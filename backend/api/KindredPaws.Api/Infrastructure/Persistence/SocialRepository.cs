@@ -6,9 +6,11 @@ namespace KindredPaws.Api.Infrastructure.Persistence;
 
 public sealed class SocialRepository(AppDbContext db)
 {
-    public Task<Animal?> GetAnimalAsync(Guid animalId, Guid shelterId, CancellationToken ct) => db.Animals.Include(x => x.Shelter).SingleOrDefaultAsync(x => x.Id == animalId && x.ShelterId == shelterId, ct);
+    public Task<Animal?> GetAnimalAsync(Guid animalId, Guid shelterId, CancellationToken ct) => db.Animals.Include(x => x.Shelter).Include(x => x.Media).SingleOrDefaultAsync(x => x.Id == animalId && x.ShelterId == shelterId, ct);
     public Task AddPostAsync(Post post, CancellationToken ct) { db.Posts.Add(post); return Task.CompletedTask; }
     public Task<Post?> GetPostAsync(Guid id, CancellationToken ct) => db.Posts.Include(x => x.Media).SingleOrDefaultAsync(x => x.Id == id, ct);
+    public async Task<IReadOnlyCollection<Post>> ListByAnimalAsync(Guid animalId, CancellationToken ct) =>
+        await db.Posts.AsNoTracking().Include(x => x.Media).Where(x => x.AnimalId == animalId).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
     public async Task<IReadOnlyCollection<Post>> ListFeedAsync(DateTimeOffset? before, int skip, int pageSize, bool popular, bool successStoriesOnly, CancellationToken ct)
     {
         var query = db.Posts.AsNoTracking().Include(x => x.Media).Where(x => x.Visibility == ContentVisibility.Published);
@@ -26,7 +28,7 @@ public sealed class SocialRepository(AppDbContext db)
     public Task AddStoryAsync(Story story, CancellationToken ct) { db.Stories.Add(story); return Task.CompletedTask; }
     public Task<bool> AnimalExistsAsync(Guid animalId, Guid shelterId, CancellationToken ct) => db.Animals.AnyAsync(x => x.Id == animalId && x.ShelterId == shelterId, ct);
     public async Task<IReadOnlyDictionary<Guid, Animal>> GetAnimalsByIdsAsync(IReadOnlyCollection<Guid> animalIds, CancellationToken ct) =>
-        await db.Animals.AsNoTracking().Include(x => x.Shelter).Where(x => animalIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        await db.Animals.AsNoTracking().Include(x => x.Shelter).Include(x => x.Media).Where(x => animalIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
     public async Task<IReadOnlyCollection<Story>> ListStoriesAsync(CancellationToken ct) => await db.Stories.AsNoTracking().Include(x => x.Views).Where(x => x.ExpiresAt > DateTimeOffset.UtcNow).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
     public Task<Story?> GetStoryAsync(Guid id, CancellationToken ct) => db.Stories.SingleOrDefaultAsync(x => x.Id == id && x.ExpiresAt > DateTimeOffset.UtcNow, ct);
     public Task AddViewAsync(StoryView view, CancellationToken ct) { db.StoryViews.Add(view); return Task.CompletedTask; }
