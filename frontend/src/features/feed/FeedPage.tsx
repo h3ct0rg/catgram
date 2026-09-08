@@ -107,7 +107,7 @@ export function FeedPage() {
       <BottomNav
         onHome={() => navigate('/')}
         onSearch={() => navigate('/search')}
-        onCreate={() => navigate('/animals/new')}
+        onCreate={() => navigate('/admin/pets/new')}
       />
     </div>
   )

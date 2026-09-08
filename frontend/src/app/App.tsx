@@ -66,8 +66,6 @@ export function App() {
             />
           }
         />
-        <Route path="/animals/new" element={<RegisterPetView />} />
-        <Route path="/animals/:animalId/edit" element={<RegisterPetView />} />
         <Route path="/animals/:animalId" element={<PetView />} />
         <Route path="/p/:postId" element={<PostDetailPage />} />
         <Route path="/stories/:storyId" element={<StoryViewer />} />
@@ -122,6 +120,22 @@ export function App() {
             element={
               <RequireRole roles={ADMINISTRADOR_ONLY}>
                 <PetsPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="pets/new"
+            element={
+              <RequireRole roles={ADMINISTRADOR_ONLY}>
+                <RegisterPetView />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="pets/:animalId/edit"
+            element={
+              <RequireRole roles={ADMINISTRADOR_ONLY}>
+                <RegisterPetView />
               </RequireRole>
             }
           />

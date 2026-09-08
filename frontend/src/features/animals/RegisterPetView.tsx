@@ -90,7 +90,7 @@ export function RegisterPetView() {
           location: location || undefined,
         })
         if (photo) await addAnimalMedia(animal.id, photo, true)
-        navigate(`/animals/${animal.id}`)
+        navigate('/admin/pets')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar la mascota.')
@@ -102,15 +102,19 @@ export function RegisterPetView() {
   if (loading) return <p className="body-copy">Cargando…</p>
 
   return (
-    <main className="register-shell">
-      <button className="back-button" onClick={() => navigate(isEditing ? '/admin/pets' : '/')}>
+    <div>
+      <button className="back-button" onClick={() => navigate('/admin/pets')}>
         ‹ Volver
       </button>
-      <section className="register-heading">
-        <p className="eyebrow">Panel de refugio</p>
-        <h1>{isEditing ? 'Editar mascota' : 'Registrar mascota'}</h1>
-        <p className="body-copy">Comparte su historia y ayúdala a encontrar un hogar.</p>
-      </section>
+      <div className="admin-header">
+        <div className="admin-header-title">
+          <span className="admin-header-icon">🐾</span>
+          <div>
+            <p className="eyebrow">Panel admin</p>
+            <h1>{isEditing ? 'Editar mascota' : 'Registrar mascota'}</h1>
+          </div>
+        </div>
+      </div>
       <form className="register-form" onSubmit={submit}>
         <div className="upload-field">
           <span className="field-label">Foto principal</span>
@@ -225,6 +229,6 @@ export function RegisterPetView() {
           {submitting ? 'Guardando…' : isEditing ? '💾 Guardar cambios' : '🐾 Registrar mascota'}
         </button>
       </form>
-    </main>
+    </div>
   )
 }

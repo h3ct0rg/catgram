@@ -78,7 +78,7 @@ export function PetView() {
         <BottomNav
           onHome={() => navigate('/')}
           onSearch={() => navigate('/search')}
-          onCreate={() => navigate('/animals/new')}
+          onCreate={() => navigate('/admin/pets/new')}
         />
       </div>
     )
@@ -99,7 +99,7 @@ export function PetView() {
         <BottomNav
           onHome={() => navigate('/')}
           onSearch={() => navigate('/search')}
-          onCreate={() => navigate('/animals/new')}
+          onCreate={() => navigate('/admin/pets/new')}
         />
       </div>
     )
@@ -258,7 +258,7 @@ export function PetView() {
       <BottomNav
         onHome={() => navigate('/')}
         onSearch={() => navigate('/search')}
-        onCreate={() => navigate('/animals/new')}
+        onCreate={() => navigate('/admin/pets/new')}
       />
     </div>
   )

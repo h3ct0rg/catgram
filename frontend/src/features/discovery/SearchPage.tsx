@@ -176,7 +176,7 @@ export function SearchPage() {
       <BottomNav
         onHome={() => navigate('/')}
         onSearch={() => undefined}
-        onCreate={() => navigate('/animals/new')}
+        onCreate={() => navigate('/admin/pets/new')}
       />
     </div>
   )

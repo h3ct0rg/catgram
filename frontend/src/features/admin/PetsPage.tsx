@@ -52,7 +52,11 @@ export function PetsPage() {
           </div>
         </div>
         <div className="admin-header-action">
-          <button className="primary-button" type="button" onClick={() => navigate('/animals/new')}>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => navigate('/admin/pets/new')}
+          >
             Crear mascota
           </button>
         </div>
@@ -88,7 +92,7 @@ export function PetsPage() {
                 </button>
                 <button
                   className="secondary-button"
-                  onClick={() => navigate(`/animals/${pet.id}/edit`)}
+                  onClick={() => navigate(`/admin/pets/${pet.id}/edit`)}
                 >
                   Editar
                 </button>

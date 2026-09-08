@@ -136,7 +136,7 @@ export function CreatePostPage() {
           <span className="admin-empty-icon">🐾</span>
           <h2>Todavía no tienes mascotas registradas</h2>
           <p className="body-copy">Registra tu primera mascota para poder publicar sobre ella.</p>
-          <button className="primary-button" onClick={() => navigate('/animals/new')}>
+          <button className="primary-button" onClick={() => navigate('/admin/pets/new')}>
             Registrar mascota
           </button>
         </div>
