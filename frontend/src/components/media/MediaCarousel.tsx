@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimalMedia } from '../../types/domain'
 
 type Props = {
@@ -11,11 +11,29 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
   const [index, setIndex] = useState(0)
   const touchStartX = useRef<number | null>(null)
   const dragged = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+  const [ratios, setRatios] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width
+      if (width) setContainerWidth(width)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   if (media.length === 0) return null
 
   function goTo(next: number) {
     setIndex(Math.max(0, Math.min(next, media.length - 1)))
+  }
+
+  function recordRatio(id: string, ratio: number) {
+    setRatios((current) => (current[id] === ratio ? current : { ...current, [id]: ratio }))
   }
 
   function handleTouchStart(event: React.TouchEvent) {
@@ -40,9 +58,17 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
     onOpen?.()
   }
 
+  // The carousel's slides can each have a different aspect ratio (independent per-photo crop),
+  // but they all share one flex row's height at any given time — so the container's own height
+  // is driven by whichever slide is currently visible, and recalculated as the user swipes.
+  const currentRatio = ratios[media[index]?.id]
+  const height = containerWidth && currentRatio ? containerWidth / currentRatio : undefined
+
   return (
     <div
+      ref={containerRef}
       className={`media-carousel ${className ?? ''}`}
+      style={{ height }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -58,6 +84,12 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
                 playsInline
                 preload="metadata"
                 onClick={(event) => event.stopPropagation()}
+                onLoadedMetadata={(event) => {
+                  const video = event.currentTarget
+                  if (video.videoWidth && video.videoHeight) {
+                    recordRatio(item.id, video.videoWidth / video.videoHeight)
+                  }
+                }}
               />
               <span className="video-badge media-overlay-badge">
                 <span className="material-symbols-outlined">videocam</span>
@@ -65,7 +97,16 @@ export function MediaCarousel({ media, className, onOpen }: Props) {
             </div>
           ) : (
             <div className="media-slide" key={item.id}>
-              <img src={item.url} alt="" />
+              <img
+                src={item.url}
+                alt=""
+                onLoad={(event) => {
+                  const img = event.currentTarget
+                  if (img.naturalWidth && img.naturalHeight) {
+                    recordRatio(item.id, img.naturalWidth / img.naturalHeight)
+                  }
+                }}
+              />
             </div>
           ),
         )}

@@ -4,6 +4,9 @@ import { useSession } from '../../context/SessionContext'
 import { addAnimalMedia, createAnimal, getAnimal, updateAnimal } from '../../services/apiClient'
 import { adoptionStatusLabel } from '../../utils/adoptionStatus'
 import { SEX_OPTIONS, SIZE_OPTIONS, SPECIES_OPTIONS } from '../../utils/animalOptions'
+import { ImageCropModal } from '../../components/media/ImageCropModal'
+
+const PHOTO_ASPECT_OPTIONS = [{ label: 'Cuadrado', value: 1 }]
 
 const ADOPTION_STATUS_OPTIONS = ['Available', 'InProcess', 'Adopted', 'Unavailable', 'Deceased']
 
@@ -25,6 +28,7 @@ export function RegisterPetView() {
   const [adoptionStatus, setAdoptionStatus] = useState('Available')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -50,8 +54,14 @@ export function RegisterPetView() {
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
-    setPhoto(file)
-    setPhotoPreview(file ? URL.createObjectURL(file) : '')
+    event.target.value = ''
+    if (file) setPendingCropFile(file)
+  }
+
+  function handleCropConfirm(croppedFile: File) {
+    setPhoto(croppedFile)
+    setPhotoPreview(URL.createObjectURL(croppedFile))
+    setPendingCropFile(null)
   }
 
   async function submit(event: FormEvent) {
@@ -229,6 +239,16 @@ export function RegisterPetView() {
           {submitting ? 'Guardando…' : isEditing ? '💾 Guardar cambios' : '🐾 Registrar mascota'}
         </button>
       </form>
+
+      {pendingCropFile && (
+        <ImageCropModal
+          file={pendingCropFile}
+          aspectOptions={PHOTO_ASPECT_OPTIONS}
+          title="Ajustar foto de perfil"
+          onCancel={() => setPendingCropFile(null)}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   )
 }

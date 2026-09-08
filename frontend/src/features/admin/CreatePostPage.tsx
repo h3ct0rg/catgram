@@ -3,9 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSession } from '../../context/SessionContext'
 import { createPost, getAnimals } from '../../services/apiClient'
 import { Animal } from '../../types/domain'
+import { ImageCropModal } from '../../components/media/ImageCropModal'
 
 const MAX_PHOTOS = 10
 const MAX_VIDEOS = 4
+const POST_ASPECT_OPTIONS = [
+  { label: '1:1', value: 1 },
+  { label: '4:5', value: 4 / 5 },
+  { label: '16:9', value: 16 / 9 },
+]
 
 export function CreatePostPage() {
   const navigate = useNavigate()
@@ -22,6 +28,7 @@ export function CreatePostPage() {
   const [isSuccessStory, setIsSuccessStory] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
+  const [cropQueue, setCropQueue] = useState<File[]>([])
   const previewsRef = useRef<string[]>([])
   previewsRef.current = previews
   const [fileError, setFileError] = useState('')
@@ -43,9 +50,12 @@ export function CreatePostPage() {
     event.target.value = ''
     if (incoming.length === 0) return
 
-    const next = [...files, ...incoming]
-    const photoCount = next.filter((file) => file.type.startsWith('image/')).length
-    const videoCount = next.filter((file) => file.type.startsWith('video/')).length
+    const incomingImages = incoming.filter((file) => file.type.startsWith('image/'))
+    const incomingVideos = incoming.filter((file) => file.type.startsWith('video/'))
+    const existingPhotoCount = files.filter((file) => file.type.startsWith('image/')).length
+    const existingVideoCount = files.filter((file) => file.type.startsWith('video/')).length
+    const photoCount = existingPhotoCount + cropQueue.length + incomingImages.length
+    const videoCount = existingVideoCount + incomingVideos.length
 
     if (photoCount > MAX_PHOTOS) {
       setFileError(`Puedes agregar hasta ${MAX_PHOTOS} fotos.`)
@@ -56,8 +66,16 @@ export function CreatePostPage() {
       return
     }
     setFileError('')
-    setFiles(next)
-    setPreviews((current) => [...current, ...incoming.map((file) => URL.createObjectURL(file))])
+    if (incomingVideos.length > 0) {
+      setFiles((current) => [...current, ...incomingVideos])
+      setPreviews((current) => [
+        ...current,
+        ...incomingVideos.map((file) => URL.createObjectURL(file)),
+      ])
+    }
+    if (incomingImages.length > 0) {
+      setCropQueue((current) => [...current, ...incomingImages])
+    }
   }
 
   function removeFile(index: number) {
@@ -65,6 +83,18 @@ export function CreatePostPage() {
     setFiles((current) => current.filter((_, i) => i !== index))
     setPreviews((current) => current.filter((_, i) => i !== index))
   }
+
+  function handleCropConfirm(croppedFile: File) {
+    setFiles((current) => [...current, croppedFile])
+    setPreviews((current) => [...current, URL.createObjectURL(croppedFile)])
+    setCropQueue((current) => current.slice(1))
+  }
+
+  function handleCropCancel() {
+    setCropQueue((current) => current.slice(1))
+  }
+
+  const currentCropFile = cropQueue[0] ?? null
 
   const photoCount = files.filter((file) => file.type.startsWith('image/')).length
   const videoCount = files.length - photoCount
@@ -268,6 +298,17 @@ export function CreatePostPage() {
             {submitting ? 'Publicando…' : '📸 Publicar'}
           </button>
         </form>
+      )}
+
+      {currentCropFile && (
+        <ImageCropModal
+          key={`${currentCropFile.name}-${currentCropFile.lastModified}-${cropQueue.length}`}
+          file={currentCropFile}
+          aspectOptions={POST_ASPECT_OPTIONS}
+          title="Ajustar foto"
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
       )}
     </div>
   )

@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import { getAnimals, createStory } from '../../services/apiClient'
 import { Animal, Story } from '../../types/domain'
 import { useSession } from '../../context/SessionContext'
+import { ImageCropModal } from '../../components/media/ImageCropModal'
 
 type Props = {
   onClose: () => void
@@ -9,6 +10,7 @@ type Props = {
 }
 
 const ACCEPT = 'image/*,video/mp4,video/webm,video/quicktime'
+const STORY_ASPECT_OPTIONS = [{ label: 'Historia', value: 9 / 16 }]
 
 export function CreateStoryModal({ onClose, onPublished }: Props) {
   const session = useSession()
@@ -23,6 +25,7 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
   const [isVideo, setIsVideo] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null)
 
   // Load only shelter's animals
   useEffect(() => {
@@ -35,11 +38,22 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0]
+    e.target.value = ''
     if (!selected) return
+    if (selected.type.startsWith('image/')) {
+      setPendingCropFile(selected)
+      return
+    }
     setFile(selected)
-    setIsVideo(selected.type.startsWith('video/'))
-    const url = URL.createObjectURL(selected)
-    setPreview(url)
+    setIsVideo(true)
+    setPreview(URL.createObjectURL(selected))
+  }
+
+  function handleCropConfirm(croppedFile: File) {
+    setFile(croppedFile)
+    setIsVideo(false)
+    setPreview(URL.createObjectURL(croppedFile))
+    setPendingCropFile(null)
   }
 
   function clearFile() {
@@ -226,6 +240,16 @@ export function CreateStoryModal({ onClose, onPublished }: Props) {
           </div>
         </form>
       </div>
+
+      {pendingCropFile && (
+        <ImageCropModal
+          file={pendingCropFile}
+          aspectOptions={STORY_ASPECT_OPTIONS}
+          title="Ajustar foto de historia"
+          onCancel={() => setPendingCropFile(null)}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   )
 }

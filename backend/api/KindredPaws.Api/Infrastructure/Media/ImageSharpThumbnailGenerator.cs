@@ -15,7 +15,11 @@ public sealed class ImageSharpThumbnailGenerator : IThumbnailGenerator
     public async Task<(Stream Content, long Length, string ContentType)?> GenerateAsync(Stream source, CancellationToken cancellationToken)
     {
         using var image = await Image.LoadAsync(source, cancellationToken);
-        image.Mutate(x => x.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(MaxDimension, MaxDimension) }));
+        // AutoOrient bakes the EXIF Orientation tag into the pixel buffer before resizing — without
+        // it, a portrait phone photo (sensor buffer stored landscape + a "rotate 90" EXIF tag) gets
+        // resized in its raw sensor orientation, and the re-encoded WebP thumbnail has no orientation
+        // tag of its own to correct it, so it renders visibly rotated.
+        image.Mutate(x => x.AutoOrient().Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(MaxDimension, MaxDimension) }));
         var output = new MemoryStream();
         await image.SaveAsync(output, new WebpEncoder(), cancellationToken);
         output.Position = 0;
